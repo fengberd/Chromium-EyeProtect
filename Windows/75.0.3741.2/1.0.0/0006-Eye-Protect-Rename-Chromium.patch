@@ -1,0 +1,29 @@
+From f0df6cfa47da32da6fc423f521af593217d556f9 Mon Sep 17 00:00:00 2001
+From: FENGberd <fengberd@gmail.com>
+Date: Thu, 4 Apr 2019 22:19:19 +0800
+Subject: [PATCH 6/6] [Eye-Protect] Rename Chromium...
+
+---
+ chrome/app/chromium_strings.grd | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/chrome/app/chromium_strings.grd b/chrome/app/chromium_strings.grd
+index 5b5844d9b147..4b650118e84c 100644
+--- a/chrome/app/chromium_strings.grd
++++ b/chrome/app/chromium_strings.grd
+@@ -130,10 +130,10 @@ If you update this file, be sure also to update google_chrome_strings.grd. -->
+         Disconnecting <ph name="USERNAME">$1<ex>someone@example.com</ex></ph> will clear your history, bookmarks, settings, and other Chromium data stored on this device. Data stored in your Google Account will not be cleared and can be managed on <ph name="GOOGLE_DASHBOARD_LINK">&lt;a target="_blank" href="$2"&gt;</ph>Google Dashboard<ph name="END_GOOGLE_DASHBOARD_LINK">&lt;/a&gt;</ph>.
+       </message>
+       <message name="IDS_PRODUCT_NAME" desc="The Chrome application name">
+-        Chromium
++        Chromium EyeProtect
+       </message>
+       <message name="IDS_SHORT_PRODUCT_NAME" desc="The Chrome application short name.">
+-        Chromium
++        ChromiumEP
+       </message>
+       <if expr="is_win">
+         <message name="IDS_SXS_SHORTCUT_NAME" desc="Unused in Chromium builds" translateable="false">
+-- 
+2.18.0.windows.1
+
