@@ -1,0 +1,158 @@
+From 4647323e461e8e6bd175a13c637a608a5a55b06b Mon Sep 17 00:00:00 2001
+From: FENGberd <fengberd@gmail.com>
+Date: Tue, 30 Apr 2019 21:29:33 +0800
+Subject: [PATCH 5/6] [Eye-Protect] Re-adjust colors
+
+---
+ chrome/browser/themes/theme_properties.cc  | 50 ++++++++++++++++++++++
+ chrome/browser/ui/omnibox/omnibox_theme.cc | 30 +++++++++++++
+ chrome/browser/ui/views/tabs/tab_strip.cc  |  4 +-
+ 3 files changed, 82 insertions(+), 2 deletions(-)
+
+diff --git a/chrome/browser/themes/theme_properties.cc b/chrome/browser/themes/theme_properties.cc
+index 77e856674440..a26d792b3751 100644
+--- a/chrome/browser/themes/theme_properties.cc
++++ b/chrome/browser/themes/theme_properties.cc
+@@ -19,6 +19,10 @@
+ #include <windows.h>
+ #endif
+ 
++#include "ui/base/material_design/material_design_controller.h"
++
++using MD = ui::MaterialDesignController;
++
+ namespace {
+ 
+ // Strings used in alignment properties.
+@@ -178,6 +182,52 @@ color_utils::HSL ThemeProperties::GetDefaultTint(int id, bool incognito) {
+ 
+ // static
+ SkColor ThemeProperties::GetDefaultColor(int id, bool incognito) {
++  if (MD::eye_protection()) {
++    switch (id) {
++      case COLOR_FRAME:
++        return incognito ? SkColorSetRGB(0x28, 0x2B, 0x2D)
++                         : SkColorSetRGB(0xCC, 0xCC, 0xCC);
++      case COLOR_FRAME_INACTIVE:
++        return incognito ? SkColorSetRGB(0x38, 0x3B, 0x3D)
++                         : SkColorSetRGB(0xF5, 0xF5, 0xF5);
++
++      case COLOR_BACKGROUND_TAB:
++        return incognito ? SkColorSetRGB(0x50, 0x50, 0x50)
++                         : SkColorSetRGB(0xf2, 0xf2, 0xf2);
++      case COLOR_BACKGROUND_TAB_INACTIVE:
++        return incognito ? SkColorSetRGB(0x37, 0x37, 0x37)
++                         : SkColorSetRGB(0xd0, 0xd0, 0xd0);
++      case COLOR_BACKGROUND_TAB_TEXT:
++      case COLOR_BACKGROUND_TAB_TEXT_INACTIVE:
++        return incognito ? SK_ColorWHITE : SK_ColorBLACK;
++
++      case COLOR_TOOLBAR:
++        return incognito ? SkColorSetRGB(0x50, 0x50, 0x50)
++                         : SkColorSetRGB(0xF2, 0xF2, 0xF2);
++      case COLOR_TAB_TEXT:
++      case COLOR_BOOKMARK_TEXT:
++        return incognito ? SK_ColorWHITE : SK_ColorBLACK;
++
++      case COLOR_NTP_BACKGROUND:
++        return incognito ? SkColorSetRGB(0x32, 0x36, 0x39)
++                         : color_utils::GetSysSkColor(COLOR_WINDOW);
++      case COLOR_CONTROL_BACKGROUND:
++        return SK_ColorWHITE;
++      case COLOR_TOOLBAR_CONTENT_AREA_SEPARATOR:
++        return incognito ? SkColorSetRGB(0x28, 0x28, 0x28)
++                         : SkColorSetRGB(0xB6, 0xB4, 0xB6);
++      case COLOR_TOOLBAR_TOP_SEPARATOR:
++      case COLOR_TOOLBAR_TOP_SEPARATOR_INACTIVE:
++        return SkColorSetA(SK_ColorBLACK, 0x40);
++      case COLOR_TAB_ALERT_RECORDING:
++        return SkColorSetRGB(0xC5, 0x39, 0x29);
++      case COLOR_TAB_ALERT_CAPTURING:
++        return SkColorSetRGB(0x42, 0x85, 0xF4);
++      default:
++        break;
++    }
++  }
++
+   if (incognito) {
+     base::Optional<SkColor> incognito_color = GetIncognitoColor(id);
+     if (incognito_color.has_value())
+diff --git a/chrome/browser/ui/omnibox/omnibox_theme.cc b/chrome/browser/ui/omnibox/omnibox_theme.cc
+index 4b5df4ac14f4..947078cbeb25 100644
+--- a/chrome/browser/ui/omnibox/omnibox_theme.cc
++++ b/chrome/browser/ui/omnibox/omnibox_theme.cc
+@@ -19,6 +19,10 @@
+ #include "ui/views/linux_ui/linux_ui.h"
+ #endif
+ 
++#include "ui/base/material_design/material_design_controller.h"
++
++using MD = ui::MaterialDesignController;
++
+ namespace {
+ 
+ SkColor GetColorFromNativeTheme(ui::NativeTheme::ColorId color_id,
+@@ -40,6 +44,22 @@ SkColor GetColorFromNativeTheme(ui::NativeTheme::ColorId color_id,
+ }
+ 
+ SkColor GetSecurityChipColor(OmniboxTint tint, OmniboxPartState state) {
++
++  if (MD::eye_protection()) {
++    if (tint == OmniboxTint::DARK)
++      return gfx::kGoogleGrey100;
++    switch (state) {
++      case OmniboxPartState::CHIP_DEFAULT:
++        return gfx::kGoogleGrey800;
++      case OmniboxPartState::CHIP_SECURE:
++        return gfx::kGoogleGreen600;
++      case OmniboxPartState::CHIP_DANGEROUS:
++        return gfx::kGoogleRed600;
++      default:
++        NOTREACHED();
++    }
++  }
++
+   if (tint == OmniboxTint::DARK)
+     return gfx::kGoogleGrey200;
+   return (state == OmniboxPartState::CHIP_DANGEROUS) ? gfx::kGoogleRed600
+@@ -65,6 +85,16 @@ SkColor GetOmniboxColor(OmniboxPart part,
+   if (high_contrast && selected)
+     dark = !dark;
+ 
++  if (MD::eye_protection()) {
++    switch (part) {
++      case OmniboxPart::LOCATION_BAR_BACKGROUND:
++        return GetColorFromNativeTheme(
++            NativeId::kColorId_TextfieldDefaultBackground, tint);
++      default:
++        break;
++    }
++  }
++
+   switch (part) {
+     case OmniboxPart::LOCATION_BAR_BACKGROUND: {
+       const bool hovered = state == OmniboxPartState::HOVERED;
+diff --git a/chrome/browser/ui/views/tabs/tab_strip.cc b/chrome/browser/ui/views/tabs/tab_strip.cc
+index 42cce0835684..09861fd5d232 100644
+--- a/chrome/browser/ui/views/tabs/tab_strip.cc
++++ b/chrome/browser/ui/views/tabs/tab_strip.cc
+@@ -1229,14 +1229,14 @@ SkColor TabStrip::GetTabBackgroundColor(
+   else
+     is_active_frame = active_state == BrowserNonClientFrameView::kActive;
+ 
+-  const int color_id = is_active_frame
++  const int color_id = (!MD::eye_protection() && is_active_frame)
+                            ? ThemeProperties::COLOR_BACKGROUND_TAB
+                            : ThemeProperties::COLOR_BACKGROUND_TAB_INACTIVE;
+   // When the background tab color has not been customized, use the actual frame
+   // color instead of COLOR_BACKGROUND_TAB.
+   const SkColor frame = controller_->GetFrameColor(active_state);
+   const SkColor background =
+-      tp->HasCustomColor(color_id)
++      (MD::eye_protection() || tp->HasCustomColor(color_id))
+           ? tp->GetColor(color_id)
+           : color_utils::HSLShift(
+                 frame, tp->GetTint(ThemeProperties::TINT_BACKGROUND_TAB));
+-- 
+2.21.0.windows.1
+

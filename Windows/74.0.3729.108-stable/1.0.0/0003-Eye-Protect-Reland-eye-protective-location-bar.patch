@@ -1,0 +1,313 @@
+From 8b7c938e32f832edd5b5a2f9ab7ec09ddfa0c096 Mon Sep 17 00:00:00 2001
+From: FENGberd <fengberd@gmail.com>
+Date: Tue, 30 Apr 2019 21:25:08 +0800
+Subject: [PATCH 3/6] [Eye-Protect] Reland eye protective location bar
+
+---
+ chrome/browser/ui/BUILD.gn                    |   1 +
+ chrome/browser/ui/layout_constants.cc         |  19 +++
+ .../ui/views/location_bar/background_ep.cc    | 135 ++++++++++++++++++
+ .../location_bar/icon_label_bubble_view.cc    |   8 ++
+ .../views/location_bar/location_bar_view.cc   |  27 +++-
+ 5 files changed, 186 insertions(+), 4 deletions(-)
+ create mode 100644 chrome/browser/ui/views/location_bar/background_ep.cc
+
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 697d174ef820..135d9a18a7a0 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -2892,6 +2892,7 @@ jumbo_split_static_library("ui") {
+       "webauthn/transport_utils.cc",
+       "webauthn/transport_utils.h",
+       "views/tabs/tab_style_ep.cc",
++      "views/location_bar/background_ep.cc",
+     ]
+     deps += [
+       "//chrome/browser/ui/views",
+diff --git a/chrome/browser/ui/layout_constants.cc b/chrome/browser/ui/layout_constants.cc
+index 018359ee80a0..54eae99fb330 100644
+--- a/chrome/browser/ui/layout_constants.cc
++++ b/chrome/browser/ui/layout_constants.cc
+@@ -44,6 +44,14 @@ int GetLayoutConstant(LayoutConstant constant) {
+         return touch_ui ? 4 : 6;
+       case TABSTRIP_TOOLBAR_OVERLAP:
+         return 0;
++      case LOCATION_BAR_BUBBLE_FONT_VERTICAL_PADDING:
++        return 2;
++      case LOCATION_BAR_BUBBLE_CORNER_RADIUS:
++        return touch_ui ? 8 : 2;
++      case LOCATION_BAR_BUBBLE_ANCHOR_VERTICAL_INSET:
++        return 6;
++      case LOCATION_BAR_ELEMENT_PADDING:
++        return touch_ui ? 3 : 1;
+       default:
+         break;
+     }
+@@ -109,6 +117,17 @@ int GetLayoutConstant(LayoutConstant constant) {
+ 
+ gfx::Insets GetLayoutInsets(LayoutInset inset) {
+   const bool touch_ui = ui::MaterialDesignController::touch_ui();
++  if (ui::MaterialDesignController::eye_protection()) {
++    // Easier to merge if we write like that
++    switch (inset) {
++      case LOCATION_BAR_ICON_INTERIOR_PADDING:
++        return touch_ui ? gfx::Insets(5) : gfx::Insets(4);
++      case TOOLBAR_ACTION_VIEW:
++        return gfx::Insets(touch_ui ? 10 : 2);
++      default:
++        break;
++    }
++  }
+   switch (inset) {
+     case LOCATION_BAR_ICON_INTERIOR_PADDING:
+       return touch_ui ? gfx::Insets(5, 10) : gfx::Insets(4, 8);
+diff --git a/chrome/browser/ui/views/location_bar/background_ep.cc b/chrome/browser/ui/views/location_bar/background_ep.cc
+new file mode 100644
+index 000000000000..c294cc73320c
+--- /dev/null
++++ b/chrome/browser/ui/views/location_bar/background_ep.cc
+@@ -0,0 +1,135 @@
++// Copyright 2015 The Chromium Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++#include "base/macros.h"
++#include "third_party/skia/include/core/SkBlendMode.h"
++#include "third_party/skia/include/core/SkColor.h"
++#include "ui/views/background.h"
++
++namespace gfx {
++class Canvas;
++}
++
++namespace views {
++class View;
++}
++
++// BackgroundWith1PxBorder renders a solid background color, with a one pixel
++// border with rounded corners. This accounts for the scaling of the canvas, so
++// that the border is one pixel regardless of display scaling.
++// TODO(patricialor): Delete this & replace with CreateRoundRectWith1PxPainter.
++class BackgroundWith1PxBorder : public views::Background {
++ public:
++  // The thickness of the border in DIP.
++  static constexpr int kBorderThicknessDip = 1;
++
++  // The legacy (non touch/material) border radius.
++  static constexpr int kLegacyBorderRadiusPx = 2;
++
++  BackgroundWith1PxBorder(SkColor background, SkColor border);
++
++  void set_blend_mode(SkBlendMode blend_mode) { blend_mode_ = blend_mode; }
++
++  // Paints a blue focus ring that draws over the top of the existing border.
++  void PaintFocusRing(gfx::Canvas* canvas,
++                      ui::NativeTheme* theme,
++                      const gfx::Rect& local_bounds);
++
++  // views::Background:
++  void Paint(gfx::Canvas* canvas, views::View* view) const override;
++
++ protected:
++  // Returns the amount of border radius to use for the inside edge of the
++  // border stroke for this background.
++  float GetBorderRadius(int height_in_px) const;
++
++  // Paints the background. |inner_border_radius| is the border radius of the
++  // inside of the stroke.
++  void Paint(gfx::Canvas* canvas,
++             SkColor background,
++             SkColor border,
++             float inner_border_radius,
++             const gfx::Rect& bounds) const;
++
++ private:
++  // Color for the one pixel border.
++  SkColor border_color_;
++
++  // Blend mode used when painting.
++  SkBlendMode blend_mode_ = SkBlendMode::kSrcOver;
++
++  DISALLOW_COPY_AND_ASSIGN(BackgroundWith1PxBorder);
++};
++
++#include "cc/paint/paint_flags.h"
++#include "chrome/browser/ui/views/location_bar/location_bar_view.h"
++#include "third_party/skia/include/core/SkPath.h"
++#include "third_party/skia/include/pathops/SkPathOps.h"
++#include "ui/base/material_design/material_design_controller.h"
++#include "ui/gfx/canvas.h"
++#include "ui/gfx/scoped_canvas.h"
++#include "ui/views/view.h"
++#include "ui/views/widget/widget.h"
++
++BackgroundWith1PxBorder::BackgroundWith1PxBorder(SkColor background,
++                                                 SkColor border)
++    : border_color_(border) {
++  SetNativeControlColor(background);
++}
++
++void BackgroundWith1PxBorder::PaintFocusRing(gfx::Canvas* canvas,
++                                             ui::NativeTheme* theme,
++                                             const gfx::Rect& local_bounds) {
++  SkColor focus_ring_color = theme->GetSystemColor(
++      ui::NativeTheme::NativeTheme::kColorId_FocusedBorderColor);
++  Paint(canvas, SK_ColorTRANSPARENT, focus_ring_color,
++        GetBorderRadius(local_bounds.height() * canvas->image_scale()),
++        local_bounds);
++}
++
++void BackgroundWith1PxBorder::Paint(gfx::Canvas* canvas,
++                                    views::View* view) const {
++  Paint(canvas, get_color(), border_color_,
++        GetBorderRadius(view->height() * canvas->image_scale()),
++        view->GetContentsBounds());
++}
++
++float BackgroundWith1PxBorder::GetBorderRadius(int height_in_px) const {
++  return kLegacyBorderRadiusPx;
++}
++
++void BackgroundWith1PxBorder::Paint(gfx::Canvas* canvas,
++                                    SkColor background,
++                                    SkColor border,
++                                    float inner_border_radius,
++                                    const gfx::Rect& bounds) const {
++  gfx::ScopedCanvas scoped_canvas(canvas);
++  const float scale = canvas->UndoDeviceScaleFactor();
++  gfx::RectF border_rect_f(bounds);
++  border_rect_f.Scale(scale);
++
++  // Inset by |kBorderThicknessDip|, then draw the border along the outside edge
++  // of the result. Make sure the inset amount is a whole number so the border
++  // will still be aligned to the pixel grid. std::floor is chosen here to
++  // ensure the border will be fully contained within the |kBorderThicknessDip|
++  // region.
++  border_rect_f.Inset(gfx::InsetsF(std::floor(kBorderThicknessDip * scale)));
++
++  SkRRect inner_rect(SkRRect::MakeRectXY(gfx::RectFToSkRect(border_rect_f),
++                                         inner_border_radius,
++                                         inner_border_radius));
++  SkRRect outer_rect(inner_rect);
++  // The border is 1px thick regardless of scale factor, so hard code that here.
++  outer_rect.outset(1, 1);
++
++  cc::PaintFlags flags;
++  flags.setBlendMode(blend_mode_);
++  flags.setAntiAlias(true);
++  flags.setStyle(cc::PaintFlags::kFill_Style);
++
++  flags.setColor(border);
++  canvas->sk_canvas()->drawDRRect(outer_rect, inner_rect, flags);
++
++  flags.setColor(background);
++  canvas->sk_canvas()->drawRRect(inner_rect, flags);
++}
+diff --git a/chrome/browser/ui/views/location_bar/icon_label_bubble_view.cc b/chrome/browser/ui/views/location_bar/icon_label_bubble_view.cc
+index 598b3748068c..da0a5c3acadd 100644
+--- a/chrome/browser/ui/views/location_bar/icon_label_bubble_view.cc
++++ b/chrome/browser/ui/views/location_bar/icon_label_bubble_view.cc
+@@ -343,6 +343,8 @@ IconLabelBubbleView::CreateInkDropHighlight() const {
+ 
+ std::unique_ptr<views::InkDropMask> IconLabelBubbleView::CreateInkDropMask()
+     const {
++  if (MD::eye_protection())
++    return nullptr;
+   return std::make_unique<views::RoundRectInkDropMask>(
+       ink_drop_container_->size(), gfx::Insets(),
+       ink_drop_container_->height() / 2.f);
+@@ -435,6 +437,12 @@ gfx::Size IconLabelBubbleView::GetSizeForLabelWidth(int label_width) const {
+ int IconLabelBubbleView::GetInternalSpacing() const {
+   if (image_->GetPreferredSize().IsEmpty())
+     return 0;
++  if (MD::eye_protection()) {
++    return MD::touch_ui()
++               ? 4
++               : GetLayoutConstant(LOCATION_BAR_ELEMENT_PADDING) +
++                     GetLayoutInsets(LOCATION_BAR_ICON_INTERIOR_PADDING).left();
++  }
+   return (MD::touch_ui() ? 10 : 8) + GetExtraInternalSpacing();
+ }
+ 
+diff --git a/chrome/browser/ui/views/location_bar/location_bar_view.cc b/chrome/browser/ui/views/location_bar/location_bar_view.cc
+index 737564115cf7..4edcf0d86e39 100644
+--- a/chrome/browser/ui/views/location_bar/location_bar_view.cc
++++ b/chrome/browser/ui/views/location_bar/location_bar_view.cc
+@@ -113,6 +113,10 @@
+ #include "chrome/browser/ui/views/location_bar/intent_picker_view.h"
+ #endif
+ 
++#include "chrome/browser/ui/views/location_bar/background_ep.cc"
++
++using MD = ui::MaterialDesignController;
++
+ namespace {
+ 
+ // This feature shows the full URL when the user focuses the omnibox via
+@@ -291,6 +295,8 @@ SkColor LocationBarView::GetOpaqueBorderColor(bool incognito) const {
+ }
+ 
+ int LocationBarView::GetBorderRadius() const {
++  if (MD::eye_protection())
++    return GetLayoutConstant(LOCATION_BAR_BUBBLE_CORNER_RADIUS);
+   return ChromeLayoutProvider::Get()->GetCornerRadiusMetric(
+       views::EMPHASIS_MAXIMUM, size());
+ }
+@@ -435,7 +441,8 @@ void LocationBarView::Layout() {
+   selected_keyword_view_->SetVisible(false);
+   keyword_hint_view_->SetVisible(false);
+ 
+-  const int edge_padding = GetLayoutConstant(LOCATION_BAR_ELEMENT_PADDING);
++  const int edge_padding =
++      GetLayoutConstant(LOCATION_BAR_ELEMENT_PADDING) + 1 /* WTF */;
+ 
+   // The text should be indented only if these are all true:
+   //  - The popup is open.
+@@ -479,7 +486,8 @@ void LocationBarView::Layout() {
+   // to position our child views in this case, because other things may be
+   // positioned relative to them (e.g. the "bookmark added" bubble if the user
+   // hits ctrl-d).
+-  const int vertical_padding = GetLayoutConstant(LOCATION_BAR_ELEMENT_PADDING);
++  const int vertical_padding = GetLayoutConstant(LOCATION_BAR_ELEMENT_PADDING) +
++                               (MD::eye_protection() ? 1 : 0);
+   const int location_height = std::max(height() - (vertical_padding * 2), 0);
+   // The largest fraction of the omnibox that can be taken by the EV or search
+   // label/chip.
+@@ -768,7 +776,11 @@ SkColor LocationBarView::GetBorderColor() const {
+ }
+ 
+ gfx::Rect LocationBarView::GetLocalBoundsWithoutEndcaps() const {
+-  const int border_radius = height() / 2;
++  const int border_radius =
++      MD::eye_protection()
++          ? gfx::ToCeiledInt(BackgroundWith1PxBorder::kLegacyBorderRadiusPx /
++                             layer()->device_scale_factor())
++          : height() / 2;
+   gfx::Rect bounds_without_endcaps(GetLocalBounds());
+   bounds_without_endcaps.Inset(border_radius, 0);
+   return bounds_without_endcaps;
+@@ -813,7 +825,11 @@ void LocationBarView::RefreshBackground() {
+                                                    SK_ColorTRANSPARENT);
+     }
+ 
+-    SetBackground(CreateRoundRectBackground(background_color, stroke_color));
++    SetBackground(
++        MD::eye_protection()
++            ? std::make_unique<BackgroundWith1PxBorder>(background_color,
++                                                        GetBorderColor())
++            : CreateRoundRectBackground(background_color, stroke_color));
+   }
+ 
+   // Keep the views::Textfield in sync. It needs an opaque background to
+@@ -880,6 +896,9 @@ void LocationBarView::RefreshClearAllButtonIcon() {
+ }
+ 
+ void LocationBarView::RefreshFocusRing() {
++  if (MD::eye_protection())
++    return;
++
+   // Popup windows should not display a focus ring.
+   if (is_popup_mode_)
+     return;
+-- 
+2.21.0.windows.1
+
