@@ -1,6 +1,6 @@
 # ChromiumEP for Windows
 Folder Structure:
- - Chromium Version (Same to the nightly build version)
+ - Chromium Version (Same to the nightly build version,if there's a suffix,it correspondence to an official release)
    - EyeProtect Version (Start from 1.0.0)
 	  - Patches for corresponding chromium release
 	    A common patch list:
@@ -13,7 +13,7 @@ Folder Structure:
 
 # Windows 版本
 文件夹结构:
- - Chromium 版本 (和每日构建版本一样)
+ - Chromium 版本 (和每日构建版本一样,如果带有后缀则对应官方的正式发布版)
    - EyeProtect 版本 (从1.0.0开始)
 	  - 对应版本Chromium的Patch
 	   通常的Patch结构:
