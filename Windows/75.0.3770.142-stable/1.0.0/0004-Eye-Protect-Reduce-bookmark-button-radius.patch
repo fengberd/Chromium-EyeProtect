@@ -1,0 +1,45 @@
+From bec2fce1b99b0b10daf53af08af38a8fef947cfe Mon Sep 17 00:00:00 2001
+From: FENGberd <fengberd@gmail.com>
+Date: Sun, 21 Jul 2019 15:20:57 +0800
+Subject: [PATCH 4/5] [Eye Protect] Reduce bookmark button radius
+
+---
+ chrome/browser/ui/layout_constants.cc                  | 4 ++++
+ chrome/browser/ui/views/bookmarks/bookmark_bar_view.cc | 6 ++++--
+ 2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/chrome/browser/ui/layout_constants.cc b/chrome/browser/ui/layout_constants.cc
+index 54eae99fb330..cbccf1f72307 100644
+--- a/chrome/browser/ui/layout_constants.cc
++++ b/chrome/browser/ui/layout_constants.cc
+@@ -31,6 +31,10 @@ int GetLayoutConstant(LayoutConstant constant) {
+   if (ui::MaterialDesignController::eye_protection()) {
+     // Easier to merge if we write like that
+     switch (constant) {
++      case BOOKMARK_BAR_HEIGHT:
++        return touch_ui ? 40 : 32;
++      case BOOKMARK_BAR_NTP_HEIGHT:
++        return touch_ui ? GetLayoutConstant(BOOKMARK_BAR_HEIGHT) : 39;
+       case TAB_ALERT_INDICATOR_CAPTURE_ICON_WIDTH:
+         return 16;
+       case TAB_ALERT_INDICATOR_ICON_WIDTH:
+diff --git a/chrome/browser/ui/views/bookmarks/bookmark_bar_view.cc b/chrome/browser/ui/views/bookmarks/bookmark_bar_view.cc
+index f4732554bc97..f77a4f537bb0 100644
+--- a/chrome/browser/ui/views/bookmarks/bookmark_bar_view.cc
++++ b/chrome/browser/ui/views/bookmarks/bookmark_bar_view.cc
+@@ -148,8 +148,10 @@ gfx::ImageSkia* GetImageSkiaNamed(int id) {
+ // Set the highlight path for inkdrops and focus rings.
+ void SetBookmarkHighlightPath(views::View* host_view) {
+   auto path = std::make_unique<SkPath>();
+-  const int radius = ChromeLayoutProvider::Get()->GetCornerRadiusMetric(
+-      views::EMPHASIS_MAXIMUM, host_view->size());
++  const int radius = MD::eye_protection()
++                         ? 2
++                         : ChromeLayoutProvider::Get()->GetCornerRadiusMetric(
++                               views::EMPHASIS_MAXIMUM, host_view->size());
+   path->addRoundRect(gfx::RectToSkRect(gfx::Rect(host_view->size())), radius,
+                      radius);
+   host_view->SetProperty(views::kHighlightPathKey, path.release());
+-- 
+2.18.0.windows.1
+
