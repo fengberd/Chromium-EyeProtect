@@ -1,0 +1,29 @@
+From 05cac27bfa5402a950a1f2aac4e4e9dfadadd26e Mon Sep 17 00:00:00 2001
+From: fengberd <admin@berd.moe>
+Date: Fri, 4 Oct 2019 10:25:14 +0800
+Subject: [PATCH 4/5] [Eye Protect] Minor adjustment of bookmark bar
+
+---
+ chrome/browser/ui/views/bookmarks/bookmark_bar_view.cc | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/chrome/browser/ui/views/bookmarks/bookmark_bar_view.cc b/chrome/browser/ui/views/bookmarks/bookmark_bar_view.cc
+index f3206b75be59..e2d5ad207a06 100644
+--- a/chrome/browser/ui/views/bookmarks/bookmark_bar_view.cc
++++ b/chrome/browser/ui/views/bookmarks/bookmark_bar_view.cc
+@@ -148,8 +148,10 @@ gfx::ImageSkia* GetImageSkiaNamed(int id) {
+ // Set the highlight path for inkdrops and focus rings.
+ void SetBookmarkHighlightPath(views::View* host_view) {
+   auto path = std::make_unique<SkPath>();
+-  const int radius = ChromeLayoutProvider::Get()->GetCornerRadiusMetric(
+-      views::EMPHASIS_MAXIMUM, host_view->size());
++  const int radius = MD::eye_protection()
++                         ? 2
++                         : ChromeLayoutProvider::Get()->GetCornerRadiusMetric(
++                               views::EMPHASIS_MAXIMUM, host_view->size());
+   path->addRoundRect(gfx::RectToSkRect(gfx::Rect(host_view->size())), radius,
+                      radius);
+   host_view->SetProperty(views::kHighlightPathKey, path.release());
+-- 
+2.21.0.windows.1
+
