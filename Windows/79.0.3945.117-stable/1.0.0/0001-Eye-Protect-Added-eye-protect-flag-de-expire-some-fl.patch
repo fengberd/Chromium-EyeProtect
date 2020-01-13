@@ -1,0 +1,687 @@
+From 6d1ac3ced7d18f332cdb67232c62b1cc092a463a Mon Sep 17 00:00:00 2001
+From: fengberd <admin@berd.moe>
+Date: Mon, 13 Jan 2020 20:22:23 +0800
+Subject: [PATCH 1/6] [Eye Protect] Added eye-protect flag, de-expire some
+ flags
+
+---
+ chrome/browser/about_flags.cc                 |   3 +
+ .../chromeos/login/chrome_restart_request.cc  |   1 +
+ chrome/browser/flag-metadata.json             | 148 ++++++++++--------
+ chrome/browser/flag_descriptions.cc           |   4 +
+ chrome/browser/flag_descriptions.h            |   3 +
+ .../material_design_controller.cc             |   2 +
+ .../material_design_controller.h              |   4 +
+ ui/base/ui_base_switches.cc                   |   2 +
+ ui/base/ui_base_switches.h                    |   2 +
+ 9 files changed, 101 insertions(+), 68 deletions(-)
+
+diff --git a/chrome/browser/about_flags.cc b/chrome/browser/about_flags.cc
+index 656fd33db3f6..d95c920bf4dd 100644
+--- a/chrome/browser/about_flags.cc
++++ b/chrome/browser/about_flags.cc
+@@ -1671,6 +1671,9 @@ const FeatureEntry kFeatureEntries[] = {
+     {"top-chrome-touch-ui", flag_descriptions::kTopChromeTouchUiName,
+      flag_descriptions::kTopChromeTouchUiDescription, kOsDesktop,
+      MULTI_VALUE_TYPE(kTopChromeTouchUiChoices)},
++	{"eye-protection", flag_descriptions::kEyeProtectionName,
++     flag_descriptions::kEyeProtectionDescription, kOsDesktop,
++     SINGLE_VALUE_TYPE(switches::kEyeProtection)},
+ #if BUILDFLAG(ENABLE_WEBUI_TAB_STRIP)
+     {"webui-tab-strip", flag_descriptions::kWebUITabStripName,
+      flag_descriptions::kWebUITabStripDescription, kOsDesktop,
+diff --git a/chrome/browser/chromeos/login/chrome_restart_request.cc b/chrome/browser/chromeos/login/chrome_restart_request.cc
+index b8a137508765..4db25b723a10 100644
+--- a/chrome/browser/chromeos/login/chrome_restart_request.cc
++++ b/chrome/browser/chromeos/login/chrome_restart_request.cc
+@@ -143,6 +143,7 @@ void DeriveCommandLine(const GURL& start_url,
+     ::switches::kTouchDevices,
+     ::switches::kTouchEventFeatureDetection,
+     ::switches::kTopChromeTouchUi,
++    ::switches::kEyeProtection,
+     ::switches::kTraceToConsole,
+     ::switches::kUIDisablePartialSwap,
+ #if defined(USE_CRAS)
+diff --git a/chrome/browser/flag-metadata.json b/chrome/browser/flag-metadata.json
+index f7f2ce3924bb..856688aef720 100644
+--- a/chrome/browser/flag-metadata.json
++++ b/chrome/browser/flag-metadata.json
+@@ -104,7 +104,7 @@
+   },
+   {
+     "name": "animated-avatar-button",
+-    "owners": ["jkrcal"],
++    "owners": [ "jkrcal" ],
+     "expiry_milestone": 79
+   },
+   {
+@@ -312,7 +312,7 @@
+   },
+   {
+     "name": "autofill-prune-suggestions",
+-    "owners": ["ftirelo", "tmartino"],
++    "owners": [ "ftirelo", "tmartino" ],
+     "expiry_milestone": 78
+   },
+   {
+@@ -422,17 +422,17 @@
+   },
+   {
+     "name": "chrome-colors",
+-    "owners": ["gayane"],
++    "owners": [ "gayane" ],
+     "expiry_milestone": 79
+   },
+   {
+     "name": "chrome-colors-custom-color-picker",
+-    "owners": ["gayane"],
++    "owners": [ "gayane" ],
+     "expiry_milestone": 79
+   },
+   {
+     "name": "chrome-sharing-hub",
+-    "owners": ["kmilka"],
++    "owners": [ "kmilka" ],
+     "expiry_milestone": 83
+   },
+   {
+@@ -450,7 +450,7 @@
+     "owners": [ "//chrome/browser/sharing/OWNERS" ],
+     "expiry_milestone": 82
+   },
+-	{
++  {
+     "name": "click-to-call-receiver",
+     "owners": [ "//chrome/browser/sharing/OWNERS" ],
+     "expiry_milestone": 82
+@@ -669,7 +669,8 @@
+     "owners": [ "catan-team@chromium.org" ],
+     "expiry_milestone": 75
+   },
+-  { "name": "disable-cancel-all-touches",
++  {
++    "name": "disable-cancel-all-touches",
+     "owners": [ "chrome-knowledge-eng@google.com" ],
+     // This flag is use to disable CancelAllTouches() function, which enable the
+     // testing for implementation of canceling single touches.
+@@ -709,7 +710,8 @@
+     "name": "disable-office-editing-component-app",
+     "owners": [
+       "chrome-apps-platform-rationalization@google.com",
+-      "quickoffice-chrome-eng@google.com" ],
++      "quickoffice-chrome-eng@google.com"
++    ],
+     "expiry_milestone": 88
+   },
+   {
+@@ -835,12 +837,12 @@
+   },
+   {
+     "name": "enable-ambient-authentication-in-guest-session",
+-    "owners": ["rhalavati", "chrome-privacy-core@google.com"],
++    "owners": [ "rhalavati", "chrome-privacy-core@google.com" ],
+     "expiry_milestone": 87
+   },
+   {
+     "name": "enable-ambient-authentication-in-incognito",
+-    "owners": ["rhalavati", "chrome-privacy-core@google.com"],
++    "owners": [ "rhalavati", "chrome-privacy-core@google.com" ],
+     "expiry_milestone": 87
+   },
+   {
+@@ -993,7 +995,7 @@
+   },
+   {
+     "name": "enable-autofill-local-card-migration-uses-strike-system-v2",
+-    "owners": [ "annelim@google.com", "jsaul@google.com" , "jiahuiguo@google.com"],
++    "owners": [ "annelim@google.com", "jsaul@google.com", "jiahuiguo@google.com" ],
+     "expiry_milestone": 84
+   },
+   {
+@@ -1008,7 +1010,7 @@
+   },
+   {
+     "name": "enable-autofill-save-card-show-no-thanks",
+-    "owners": ["siashah", "jsaul@google.com"],
++    "owners": [ "siashah", "jsaul@google.com" ],
+     "expiry_milestone": 82
+   },
+   {
+@@ -1018,12 +1020,12 @@
+   },
+   {
+     "name": "enable-autofill-updated-card-unmask-prompt-ui",
+-    "owners": ["siyua", "payments-autofill-team@google.com"],
++    "owners": [ "siyua", "payments-autofill-team@google.com" ],
+     "expiry_milestone": 87
+   },
+   {
+     "name": "enable-autofill-upi-vpa",
+-    "owners": ["cfroussios"],
++    "owners": [ "cfroussios" ],
+     "expiry_milestone": 82
+   },
+   {
+@@ -1038,7 +1040,7 @@
+   },
+   {
+     "name": "enable-bookmark-reorder",
+-    "owners": ["jhimawan@google.com", "twellington" ],
++    "owners": [ "jhimawan@google.com", "twellington" ],
+     "expiry_milestone": 80
+   },
+   {
+@@ -1083,7 +1085,7 @@
+   },
+   {
+     "name": "enable-clipboard-provider-text-suggestions",
+-    "owners": [ "gangwu", "chromium-omnibox-team"],
++    "owners": [ "gangwu", "chromium-omnibox-team" ],
+     "expiry_milestone": 84
+   },
+   {
+@@ -1227,7 +1229,7 @@
+   },
+   {
+     "name": "enable-experimental-accessibility-chromevox-sub-node-language-switching",
+-    "owners": [ "akihiroota", "dmazzoni", "dtseng", "//ui/accessibility/OWNERS"],
++    "owners": [ "akihiroota", "dmazzoni", "dtseng", "//ui/accessibility/OWNERS" ],
+     "expiry_milestone": 82
+   },
+   {
+@@ -1332,11 +1334,12 @@
+   },
+   {
+     "name": "enable-heuristic-stylus-palm-rejection",
+-    "owners": ["robsc", "napper"],
++    "owners": [ "robsc", "napper" ],
+     // We add a heuristic that changes the way fingers are handled. We should
+     // always let users switch it off if needed. However, for now, during
+     // experiments, we set milestone deep into future.
+-    "expiry_milestone": 90},
++    "expiry_milestone": 90
++  },
+   {
+     "name": "enable-hide-arc-media-notifications",
+     "owners": [ "beccahughes", "media-dev" ],
+@@ -1344,7 +1347,7 @@
+   },
+   {
+     "name": "enable-history-favicons-google-server-query",
+-    "owners": ["victorvianna", "jkrcal"],
++    "owners": [ "victorvianna", "jkrcal" ],
+     "expiry_milestone": 79
+   },
+   {
+@@ -1439,7 +1442,7 @@
+   },
+   {
+     "name": "enable-md-rounded-corners-on-dialogs",
+-    "owners": ["bsep", "sajadm"],
++    "owners": [ "bsep", "sajadm" ],
+     "expiry_milestone": 78
+   },
+   {
+@@ -1521,7 +1524,7 @@
+     "owners": [ "enne", "khushalsagar" ],
+     "expiry_milestone": 80
+   },
+-    {
++  {
+     "name": "enable-paint-holding",
+     "owners": [ "schenney", "paint-dev" ],
+     "expiry_milestone": 80
+@@ -1534,11 +1537,11 @@
+     "expiry_milestone": -1
+   },
+   {
+-    "name" : "enable-parental-controls-settings",
+-    "owners" : [ "danan", "michaelpg" ],
++    "name": "enable-parental-controls-settings",
++    "owners": [ "danan", "michaelpg" ],
+     // This flag is used to enable parental controls options in ChromeOS
+     // settings.
+-    "expiry_milestone" : 79
++    "expiry_milestone": 79
+   },
+   {
+     "name": "enable-pixel-canvas-recording",
+@@ -1551,9 +1554,9 @@
+     "expiry_milestone": 83
+   },
+   {
+-    "name" : "enable-pointer-lock-options",
+-    "owners" : [ "eirage", "nzolghadr", "input-dev" ],
+-    "expiry_milestone" : 85
++    "name": "enable-pointer-lock-options",
++    "owners": [ "eirage", "nzolghadr", "input-dev" ],
++    "expiry_milestone": 85
+   },
+   {
+     "name": "enable-portals",
+@@ -1716,7 +1719,7 @@
+   },
+   {
+     "name": "enable-skia-renderer",
+-    "owners": [ "backer"],
++    "owners": [ "backer" ],
+     "expiry_milestone": 80
+   },
+   {
+@@ -1726,12 +1729,12 @@
+   },
+   {
+     "name": "enable-start-surface",
+-    "owners": [ "gogerald"],
++    "owners": [ "gogerald" ],
+     "expiry_milestone": 83
+   },
+   {
+     "name": "enable-storage-pressure-ui",
+-    "owners": [ "jarrydg"],
++    "owners": [ "jarrydg" ],
+     "expiry_milestone": 82
+   },
+   {
+@@ -1740,8 +1743,8 @@
+     "expiry_milestone": 77
+   },
+   {
+-    "name" : "enable-subresource-redirect",
+-    "owners" : [ "robertogden", "tbansal" ],
++    "name": "enable-subresource-redirect",
++    "owners": [ "robertogden", "tbansal" ],
+     "expiry_milestone": 85
+   },
+   {
+@@ -1771,7 +1774,7 @@
+   },
+   {
+     "name": "enable-sync-device-info-in-transport-mode",
+-    "owners": ["//components/sync/OWNERS", "//chrome/browser/sharing/OWNERS"],
++    "owners": [ "//components/sync/OWNERS", "//chrome/browser/sharing/OWNERS" ],
+     "expiry_milestone": 81
+   },
+   {
+@@ -1982,7 +1985,7 @@
+   },
+   {
+     "name": "enable-webnfc",
+-    "owners": [ "rijubrata.bhaumik@intel.com","reillyg" ],
++    "owners": [ "rijubrata.bhaumik@intel.com", "reillyg" ],
+     "expiry_milestone": 79
+   },
+   {
+@@ -2050,7 +2053,7 @@
+     "owners": [ "wensh@microsoft.com" ],
+     "expiry_milestone": 80
+   },
+- {
++  {
+     "name": "enable-zero-copy",
+     "owners": [ "ccameron", "chrome-gpu@google.com" ],
+     // This flag is commonly used when asking users to help gather debug info.
+@@ -2058,7 +2061,7 @@
+   },
+   {
+     "name": "enable-zero-state-app-reinstall-suggestions",
+-    "owners": ["robsc", "napper", "jennyz"],
++    "owners": [ "robsc", "napper", "jennyz" ],
+     "expiry_milestone": 80
+   },
+   {
+@@ -2115,7 +2118,7 @@
+   },
+   {
+     "name": "file-handling-api",
+-    "owners": ["harrisjay@chromium.org", "raymes@chromium.org"],
++    "owners": [ "harrisjay@chromium.org", "raymes@chromium.org" ],
+     "expiry_milestone": 79
+   },
+   {
+@@ -2166,7 +2169,7 @@
+   },
+   {
+     "name": "force-effective-connection-type",
+-     "owners": [ "//components/data_reduction_proxy/OWNERS" ],
++    "owners": [ "//components/data_reduction_proxy/OWNERS" ],
+     // ECT is a baked-in feature of Chrome. This flag is used for frequent
+     // testing and should not be removed.
+     "expiry_milestone": -1
+@@ -2201,7 +2204,7 @@
+   {
+     "name": "force-update-menu-type",
+     "owners": [ "//chrome/android/java/src/org/chromium/chrome/browser/omaha/OWNERS" ],
+-     // This is required by test teams to verify functionality on devices which
++    // This is required by test teams to verify functionality on devices which
+     // have no access to commandline flags.
+     "expiry_milestone": -1
+   },
+@@ -2276,7 +2279,7 @@
+   },
+   {
+     "name": "harfbuzz-pdf-subsetter",
+-    "owners": ["dhoss", "thestig"],
++    "owners": [ "dhoss", "thestig" ],
+     "expiry_milestone": 80
+   },
+   {
+@@ -2286,7 +2289,7 @@
+   },
+   {
+     "name": "identity-disc",
+-    "owners": ["//chrome/android/java/src/org/chromium/chrome/browser/toolbar/OWNERS"],
++    "owners": [ "//chrome/android/java/src/org/chromium/chrome/browser/toolbar/OWNERS" ],
+     "expiry_milestone": 78
+   },
+   {
+@@ -2442,12 +2445,12 @@
+   },
+   {
+     "name": "message-center-redesign",
+-    "owners": ["amehfooz", "tengs"],
++    "owners": [ "amehfooz", "tengs" ],
+     "expiry_milestone": 81
+   },
+   {
+     "name": "metal",
+-    "owners": ["ccameron", "jvanverth"],
++    "owners": [ "ccameron", "jvanverth" ],
+     "expiry_milestone": 83
+   },
+   {
+@@ -2473,7 +2476,7 @@
+   {
+     "name": "native-file-system-api",
+     "owners": [ "mek", "pwnall" ],
+-    "expiry_milestone":  80
++    "expiry_milestone": 80
+   },
+   {
+     "name": "network-service-in-process",
+@@ -2517,22 +2520,22 @@
+   },
+   {
+     "name": "ntp-customization-menu-v2",
+-    "owners": ["kmilka", "ramyan"],
++    "owners": [ "kmilka", "ramyan" ],
+     "expiry_milestone": 79
+   },
+   {
+     "name": "ntp-disable-initial-most-visited-fade-in",
+-    "owners": ["dbeam"],
++    "owners": [ "dbeam" ],
+     "expiry_milestone": 79
+   },
+   {
+     "name": "ntp-dismiss-promos",
+-    "owners": ["dbeam"],
++    "owners": [ "dbeam" ],
+     "expiry_milestone": 82
+   },
+   {
+     "name": "ntp-realbox",
+-    "owners": ["dbeam", "mahmadi"],
++    "owners": [ "dbeam", "mahmadi" ],
+     "expiry_milestone": 85
+   },
+   {
+@@ -2542,7 +2545,7 @@
+   },
+   {
+     "name": "offline-home",
+-    "owners": [ "shaktisahu", "dtrainor"],
++    "owners": [ "shaktisahu", "dtrainor" ],
+     "expiry_milestone": 85
+   },
+   {
+@@ -2743,17 +2746,17 @@
+   {
+     "name": "omnibox-ui-hide-steady-state-url-path-query-and-ref",
+     "owners": [ "tommycli", "chrome-omnibox-team@google.com" ],
+-    "expiry_milestone": 76
++    "expiry_milestone": -1
+   },
+   {
+     "name": "omnibox-ui-hide-steady-state-url-scheme",
+     "owners": [ "tommycli", "chrome-omnibox-team@google.com" ],
+-    "expiry_milestone": 76
++    "expiry_milestone": -1
+   },
+   {
+     "name": "omnibox-ui-hide-steady-state-url-trivial-subdomains",
+     "owners": [ "tommycli", "chrome-omnibox-team@google.com" ],
+-    "expiry_milestone": 76
++    "expiry_milestone": -1
+   },
+   {
+     "name": "omnibox-ui-max-autocomplete-matches",
+@@ -2839,8 +2842,8 @@
+   },
+   {
+     "name": "overscroll-history-navigation",
+-     "owners": [ "mohsen", "jinsukkim" ],
+-     "expiry_milestone": 80
++    "owners": [ "mohsen", "jinsukkim" ],
++    "expiry_milestone": 80
+   },
+   {
+     "name": "passive-event-listeners-due-to-fling",
+@@ -2864,7 +2867,7 @@
+   },
+   {
+     "name": "password-manager-onboarding-android",
+-    "owners": ["achulkov", "ioanap"],
++    "owners": [ "achulkov", "ioanap" ],
+     "expiry_milestone": 80
+   },
+   {
+@@ -2874,7 +2877,7 @@
+   },
+   {
+     "name": "passwords-account-storage",
+-    "owners": ["mamir", "treib"],
++    "owners": [ "mamir", "treib" ],
+     "expiry_milestone": 85
+   },
+   {
+@@ -2919,8 +2922,11 @@
+   },
+   {
+     "name": "privacy-settings-redesign",
+-    "owners": ["harrisonsean", "msramek",
+-      "chrome-privacy-core@google.com"],
++    "owners": [
++      "harrisonsean",
++      "msramek",
++      "chrome-privacy-core@google.com"
++    ],
+     "expiry_milestone": 82
+   },
+   {
+@@ -2953,7 +2959,8 @@
+     "owners": [ "mdjones" ],
+     "expiry_milestone": 78
+   },
+-  { "name": "reduce-display-notifications",
++  {
++    "name": "reduce-display-notifications",
+     "owners": [ "baileyberro", "zentaro" ],
+     "expiry_milestone": 82
+   },
+@@ -3009,18 +3016,18 @@
+   },
+   {
+     "name": "scrollable-tabstrip",
+-    "owners": ["chrome-desktop-ui-seattle@google.com", "tbergquist"],
++    "owners": [ "chrome-desktop-ui-seattle@google.com", "tbergquist" ],
+     "expiry_milestone": 82
+   },
+   {
+     "name": "security-interstitials-dark-mode",
+-    "owners": ["estark"],
++    "owners": [ "estark" ],
+     "expiry_milestone": 79
+   },
+   {
+     "name": "set-market-url-for-testing",
+     "owners": [ "//chrome/android/java/src/org/chromium/chrome/browser/omaha/OWNERS" ],
+-     // This is required by test teams to verify functionality on devices which
++    // This is required by test teams to verify functionality on devices which
+     // have no access to commandline flags.
+     "expiry_milestone": -1
+   },
+@@ -3121,7 +3128,7 @@
+   {
+     "name": "simplify-https-indicator",
+     "owners": [ "cthomp", "estark" ],
+-    "expiry_milestone": 76
++    "expiry_milestone": -1
+   },
+   {
+     "_comment1": "Shipping some form of Site Isolation to Android is tracked",
+@@ -3172,7 +3179,7 @@
+   },
+   {
+     "name": "strict-origin-isolation",
+-    "owners": ["wjmaclean", "alexmos", "creis"],
++    "owners": [ "wjmaclean", "alexmos", "creis" ],
+     // This can be used to opt in to origin isolation which isolates full
+     // origins rather than sites.  Note that this breaks document.domain and is
+     // therefore unlikely to ship anytime soon, but this allows experimenting
+@@ -3197,7 +3204,7 @@
+   },
+   {
+     "name": "sync-wifi-configurations",
+-    "owners": ["jonmann", "cros-system-services@google.com"],
++    "owners": [ "jonmann", "cros-system-services@google.com" ],
+     "expiry_milestone": 80
+   },
+   {
+@@ -3223,7 +3230,7 @@
+   {
+     "name": "tab-outlines-in-low-contrast-themes",
+     "owners": [ "dfried" ],
+-    "expiry_milestone":  82
++    "expiry_milestone": 82
+   },
+   {
+     "name": "tab-switcher-longpress-menu",
+@@ -3366,7 +3373,7 @@
+   {
+     "name": "update-menu-item-custom-summary",
+     "owners": [ "//chrome/android/java/src/org/chromium/chrome/browser/omaha/OWNERS" ],
+-     // This is required by test teams to verify functionality on devices which
++    // This is required by test teams to verify functionality on devices which
+     // have no access to commandline flags.
+     "expiry_milestone": -1
+   },
+@@ -3533,5 +3540,10 @@
+     "name": "zero-state-files",
+     "owners": [ "tby", "jiameng" ],
+     "expiry_milestone": 82
++  },
++  { // I dont care about the alpha order cuz this wont be commited to chromium project :/
++    "name": "eye-protection",
++    "owners": [ "admin@berd.moe" ],
++    "expiry_milestone": -1
+   }
+ ]
+diff --git a/chrome/browser/flag_descriptions.cc b/chrome/browser/flag_descriptions.cc
+index c1673aee517c..7c9f076c1b43 100644
+--- a/chrome/browser/flag_descriptions.cc
++++ b/chrome/browser/flag_descriptions.cc
+@@ -2068,6 +2068,10 @@ const char kTopChromeTouchUiName[] = "Touch UI Layout";
+ const char kTopChromeTouchUiDescription[] =
+     "Enables touch UI layout in the browser's top chrome.";
+ 
++const char kEyeProtectionName[] = "Eye Protection";
++const char kEyeProtectionDescription[] =
++    "Protect your eyes from being hurt by Material Disaster 2";
++
+ const char kThreadedScrollingName[] = "Threaded scrolling";
+ const char kThreadedScrollingDescription[] =
+     "Threaded handling of scroll-related input events. Disabling this will "
+diff --git a/chrome/browser/flag_descriptions.h b/chrome/browser/flag_descriptions.h
+index 6e54b2b91eaa..c95eb3e6a497 100644
+--- a/chrome/browser/flag_descriptions.h
++++ b/chrome/browser/flag_descriptions.h
+@@ -1222,6 +1222,9 @@ extern const char kTLS13HardeningForLocalAnchorsDescription[];
+ extern const char kTopChromeTouchUiName[];
+ extern const char kTopChromeTouchUiDescription[];
+ 
++extern const char kEyeProtectionName[];
++extern const char kEyeProtectionDescription[];
++
+ extern const char kThreadedScrollingName[];
+ extern const char kThreadedScrollingDescription[];
+ 
+diff --git a/ui/base/material_design/material_design_controller.cc b/ui/base/material_design/material_design_controller.cc
+index 66d19acac3e3..136cce8b3b00 100644
+--- a/ui/base/material_design/material_design_controller.cc
++++ b/ui/base/material_design/material_design_controller.cc
+@@ -51,11 +51,13 @@ void TabletModeWatcherWinProc(HWND hwnd,
+ #endif  // defined(OS_WIN)
+ 
+ bool MaterialDesignController::touch_ui_ = false;
++bool MaterialDesignController::eye_protection_ = false;
+ bool MaterialDesignController::automatic_touch_ui_ = false;
+ 
+ // static
+ void MaterialDesignController::Initialize() {
+   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
++  eye_protection_ = command_line->HasSwitch(switches::kEyeProtection);
+   const std::string switch_value =
+       command_line->GetSwitchValueASCII(switches::kTopChromeTouchUi);
+   bool touch = switch_value == switches::kTopChromeTouchUiEnabled;
+diff --git a/ui/base/material_design/material_design_controller.h b/ui/base/material_design/material_design_controller.h
+index 2ec2d5f631a9..2500616bce16 100644
+--- a/ui/base/material_design/material_design_controller.h
++++ b/ui/base/material_design/material_design_controller.h
+@@ -33,6 +33,8 @@ class UI_BASE_EXPORT MaterialDesignController {
+   // Initializes touch UI state based on command-line flags.
+   static void Initialize();
+ 
++  static bool eye_protection() { return eye_protection_; }
++
+   static bool touch_ui() { return touch_ui_; }
+ 
+   // Exposed for TabletModePageBehavior on ChromeOS + ash.
+@@ -56,6 +58,8 @@ class UI_BASE_EXPORT MaterialDesignController {
+   // Whether the UI layout should be touch-optimized.
+   static bool touch_ui_;
+ 
++  static bool eye_protection_;
++
+   // Whether |touch_ui_| should toggle on and off depending on the tablet state.
+   static bool automatic_touch_ui_;
+ 
+diff --git a/ui/base/ui_base_switches.cc b/ui/base/ui_base_switches.cc
+index e74239ee549e..c87c1ffc8cc9 100644
+--- a/ui/base/ui_base_switches.cc
++++ b/ui/base/ui_base_switches.cc
+@@ -95,6 +95,8 @@ const char kTopChromeTouchUiAuto[] = "auto";
+ const char kTopChromeTouchUiDisabled[] = "disabled";
+ const char kTopChromeTouchUiEnabled[] = "enabled";
+ 
++const char kEyeProtection[] = "eye-protection";
++
+ // Disable partial swap which is needed for some OpenGL drivers / emulators.
+ const char kUIDisablePartialSwap[] = "ui-disable-partial-swap";
+ 
+diff --git a/ui/base/ui_base_switches.h b/ui/base/ui_base_switches.h
+index 9a0c356de262..4ddd46770bab 100644
+--- a/ui/base/ui_base_switches.h
++++ b/ui/base/ui_base_switches.h
+@@ -44,6 +44,8 @@ UI_BASE_EXPORT extern const char kUseSystemClipboard[];
+ UI_BASE_EXPORT extern const char kDisallowNonExactResourceReuse[];
+ UI_BASE_EXPORT extern const char kMangleLocalizedStrings[];
+ 
++UI_BASE_EXPORT extern const char kEyeProtection[];
++
+ }  // namespace switches
+ 
+ #endif  // UI_BASE_UI_BASE_SWITCHES_H_
+-- 
+2.21.0.windows.1
+

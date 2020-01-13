@@ -1,16 +1,24 @@
 # Introduction
-Chromium-EyeProtect is a fork of [Chromium Browser](https://www.chromium.org/Home).<br />
-This fork was intended to rollback said "Refresh UI" to the legacy UI, which I think is nice and productive.<br />
-I know everyone have his/her own view about what UI is beautiful, therefore, if you like this project, I'd like to provide you with these patches or even pre-built binaries to "protect our eyes".<br />
-If you don't like it, you may simply close this page.<br />
+Chromium-EyeProtect is a fork of [Chromium Browser](https://www.chromium.org/Home).
+
+This fork was intended to rollback said "Refresh UI" to the legacy UI, which I think is nice and productive.
+
+I know everyone have his/her own view about what UI is beautiful, therefore, if you like this project, I'd like to provide you with these patches or even pre-built binaries to "protect our eyes".
+
+If you don't like it, you may simply close this page.
+
 
 You can check [My Blog(Chinese)](https://blog.berd.moe/archives/chromium-eyeprotect/) for extra descriptions.
 
 # 简介
-Chromium-EyeProtect 是 [Chromium Browser](https://www.chromium.org/Home) 的一个分支.<br />
-该分支意在将所谓的 "Refresh UI" 回滚到我认为好看且高效的传统 UI<br />
-我知道每个人关于什么UI好看的观点各不相同, 因此, 如果你喜欢这个项目, 我很乐意给你提供这些补丁或者预编译的安装包来 "护眼".<br />
-如果你不喜欢这个项目, 你可以直接关闭本页面, **不需要尝试把你的观点强加在别人身上**.<br />
+Chromium-EyeProtect 是 [Chromium Browser](https://www.chromium.org/Home) 的一个分支.
+
+该分支意在将所谓的 "Refresh UI" 回滚到我认为好看且高效的传统 UI
+
+我知道每个人关于什么UI好看的观点各部相同, 因此, 如果你喜欢这个项目, 我很乐意给你提供这些补丁或者预编译的安装包来 "护眼".
+
+如果你不喜欢这个项目, 你可以直接关闭本页面, **不需要尝试把你的观点强加在别人身上**.
+
 
 你可以访问 [我的博客](https://blog.berd.moe/archives/chromium-eyeprotect/) 来得到更多信息
 

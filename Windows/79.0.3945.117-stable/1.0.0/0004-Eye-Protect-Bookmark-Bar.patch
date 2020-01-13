@@ -1,0 +1,51 @@
+From 2356be9957a449c9dd036801b96be18ca9939796 Mon Sep 17 00:00:00 2001
+From: fengberd <admin@berd.moe>
+Date: Mon, 13 Jan 2020 23:20:42 +0800
+Subject: [PATCH 4/6] [Eye Protect] Bookmark Bar
+
+---
+ .../ui/views/bookmarks/bookmark_bar_view.cc   | 21 ++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/chrome/browser/ui/views/bookmarks/bookmark_bar_view.cc b/chrome/browser/ui/views/bookmarks/bookmark_bar_view.cc
+index 79914c538a62..00f0f8ba3b74 100644
+--- a/chrome/browser/ui/views/bookmarks/bookmark_bar_view.cc
++++ b/chrome/browser/ui/views/bookmarks/bookmark_bar_view.cc
+@@ -163,6 +163,20 @@ std::unique_ptr<views::LabelButtonBorder> CreateBookmarkButtonBorder() {
+   return border;
+ }
+ 
++class MoeHighlightPathGenerator : public views::HighlightPathGenerator {
++ public:
++  MoeHighlightPathGenerator() = default;
++
++  MoeHighlightPathGenerator(const MoeHighlightPathGenerator&) = delete;
++  MoeHighlightPathGenerator& operator=(const MoeHighlightPathGenerator&) =
++      delete;
++
++  SkPath GetHighlightPath(const View* view) override {
++    return SkPath().addRoundRect(gfx::RectToSkRect(view->GetLocalBounds()), 2,
++                                 2);
++  }
++};
++
+ // BookmarkButtonBase -----------------------------------------------
+ 
+ // Base class for non-menu hosting buttons used on the bookmark bar.
+@@ -174,7 +188,12 @@ class BookmarkButtonBase : public views::LabelButton {
+       : LabelButton(listener, title) {
+     SetImageLabelSpacing(ChromeLayoutProvider::Get()->GetDistanceMetric(
+         DISTANCE_RELATED_LABEL_HORIZONTAL_LIST));
+-    views::InstallPillHighlightPathGenerator(this);
++    if (MD::eye_protection()) {
++      views::HighlightPathGenerator::Install(
++          this, std::make_unique<MoeHighlightPathGenerator>());
++    } else {
++      views::InstallPillHighlightPathGenerator(this);
++    }
+     SetInkDropMode(InkDropMode::ON);
+     set_has_ink_drop_action_on_click(true);
+     set_ink_drop_visible_opacity(kToolbarInkDropVisibleOpacity);
+-- 
+2.21.0.windows.1
+

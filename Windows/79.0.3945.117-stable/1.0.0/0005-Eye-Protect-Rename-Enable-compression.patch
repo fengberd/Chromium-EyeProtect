@@ -1,0 +1,43 @@
+From 1e508940e4e8038c29bf95d8091807fb2dc9a858 Mon Sep 17 00:00:00 2001
+From: fengberd <admin@berd.moe>
+Date: Mon, 13 Jan 2020 23:22:03 +0800
+Subject: [PATCH 5/6] [Eye Protect] Rename & Enable compression
+
+---
+ chrome/app/chromium_strings.grd          | 4 ++--
+ chrome/installer/mini_installer/BUILD.gn | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/chrome/app/chromium_strings.grd b/chrome/app/chromium_strings.grd
+index 7b8a2fd6b1e6..a5f8be58e9d5 100644
+--- a/chrome/app/chromium_strings.grd
++++ b/chrome/app/chromium_strings.grd
+@@ -127,10 +127,10 @@ If you update this file, be sure also to update google_chrome_strings.grd. -->
+       </if>
+ 
+       <message name="IDS_PRODUCT_NAME" desc="The Chrome application name">
+-        Chromium
++        Chromium EyeProtect
+       </message>
+       <message name="IDS_SHORT_PRODUCT_NAME" desc="The Chrome application short name.">
+-        Chromium
++        ChromiumEP
+       </message>
+       <if expr="is_win">
+         <message name="IDS_SXS_SHORTCUT_NAME" desc="Unused in Chromium builds" translateable="false">
+diff --git a/chrome/installer/mini_installer/BUILD.gn b/chrome/installer/mini_installer/BUILD.gn
+index 99a1bc7cb24f..283dc14d1e74 100644
+--- a/chrome/installer/mini_installer/BUILD.gn
++++ b/chrome/installer/mini_installer/BUILD.gn
+@@ -17,7 +17,7 @@ declare_args() {
+   # the installer. By default: non-official or component builds, a build mode
+   # targeting developers, do not compress so as to provide quicker build-test
+   # cycles.
+-  skip_archive_compression = !is_official_build || is_component_build
++  skip_archive_compression = is_component_build
+ }
+ 
+ config("mini_installer_compiler_flags") {
+-- 
+2.21.0.windows.1
+
