@@ -8,7 +8,7 @@ I know everyone have his/her own view about what UI is beautiful, therefore, if 
 If you don't like it, you may simply close this page.
 
 
-You can check [My Blog(Chinese)](https://blog.berd.moe/archives/chromium-eyeprotect/) for extra descriptions.
+You can check [My Blog(Chinese)](https://blog.berd.moe/archives/chromium-eyeprotect/) for extra descriptions. To setup API Keys, please refer to [This Article](https://www.chromium.org/developers/how-tos/api-keys) or [My Blog(Chinese)](https://blog.berd.moe/archives/chromium-setup-api-keys/).
 
 # 简介
 Chromium-EyeProtect 是 [Chromium Browser](https://www.chromium.org/Home) 的一个分支.
@@ -20,7 +20,7 @@ Chromium-EyeProtect 是 [Chromium Browser](https://www.chromium.org/Home) 的一
 如果你不喜欢这个项目, 你可以直接关闭本页面, **不需要尝试把你的观点强加在别人身上**.
 
 
-你可以访问 [我的博客](https://blog.berd.moe/archives/chromium-eyeprotect/) 来得到更多信息
+你可以访问 [我的博客](https://blog.berd.moe/archives/chromium-eyeprotect/) 来得到更多信息, 关于 API Key 的配置请参考 [本文](https://blog.berd.moe/archives/chromium-setup-api-keys/).
 
 # Recommended Flags Settings / 推荐的Flags设置
 * __#eye-protction__ = *enabled*
