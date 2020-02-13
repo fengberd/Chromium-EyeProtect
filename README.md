@@ -1,4 +1,5 @@
-# Introduction
+# Introduction / 简介
+### English
 Chromium-EyeProtect is a fork of [Chromium Browser](https://www.chromium.org/Home).
 
 This fork was intended to rollback said "Refresh UI" to the legacy UI, which I think is nice and productive.
@@ -10,7 +11,7 @@ If you don't like it, you may simply close this page.
 
 You can check [My Blog(Chinese)](https://blog.berd.moe/archives/chromium-eyeprotect/) for extra descriptions. To setup API Keys, please refer to [This Article](https://www.chromium.org/developers/how-tos/api-keys) or [My Blog(Chinese)](https://blog.berd.moe/archives/chromium-setup-api-keys/).
 
-# 简介
+### 中文
 Chromium-EyeProtect 是 [Chromium Browser](https://www.chromium.org/Home) 的一个分支.
 
 该分支意在将所谓的 "Refresh UI" 回滚到我认为好看且高效的传统 UI
@@ -37,5 +38,30 @@ Chromium-EyeProtect 是 [Chromium Browser](https://www.chromium.org/Home) 的一
 	- Chinese cloud drive.
 	- 提取码(Passcode): `edfb`
 	- Including v74,v75,v77 and later, Windows and Linux.
+
+# Building / 构建
+Patches here are meant to be applied to Chromium official source directly.
+The following steps shows you how to start from zero.
+ 1. Get chromium code following [This Guide](https://www.chromium.org/developers/how-tos/get-the-code)
+ 2. Checkout to the target version, each version in chromium repository have an corresponding tag
+ 3. Move to ___src___ directory and apply patches using `git apply <Patch Name>`
+ 4. Sync dependencies using `gclient sync -D --with_branch_heads --with_tags --force`
+ 5. Use `gn args out/Release` to modify build parameters
+ 6. In some scenarios, the gn won't wait for your editor to exit, so you have to run `gn gen out/Release` again after you modified parameters
+ 7. Finally, you can use `autoninja -C out/Release chrome` to build chromium
+ 8. If you want to get an installer (in windows), use `autoninja -C out/Release mini_installer` and pick up `mini_installer.exe` in Release directory.
+
+# Android / 安卓版
+### English
+Due to the lack of sync support, I may not patch the Android Chromium.
+Related News:
+ - [https://www.androidpolice.com/2017/01/24/google-shuts-off-chrome-sync-api-third-party-browsers-android-citing-security-vulnerability/](https://www.androidpolice.com/2017/01/24/google-shuts-off-chrome-sync-api-third-party-browsers-android-citing-security-vulnerability/)
+ - [https://www.ghacks.net/2017/01/25/google-shuts-down-chrome-sync-for-third-party-browsers-on-android/](https://www.ghacks.net/2017/01/25/google-shuts-down-chrome-sync-for-third-party-browsers-on-android/)
+
+### 中文
+由于缺少同步功能的支持, 我可能不会去修改 Android Chromium
+相关新闻:
+ - [https://www.androidpolice.com/2017/01/24/google-shuts-off-chrome-sync-api-third-party-browsers-android-citing-security-vulnerability/](https://www.androidpolice.com/2017/01/24/google-shuts-off-chrome-sync-api-third-party-browsers-android-citing-security-vulnerability/)
+ - [https://www.ghacks.net/2017/01/25/google-shuts-down-chrome-sync-for-third-party-browsers-on-android/](https://www.ghacks.net/2017/01/25/google-shuts-down-chrome-sync-for-third-party-browsers-on-android/)
 
 ![在写了在写了](https://raw.githubusercontent.com/fengberd/Chromium-EyeProtect/gugu/gugu.jpg)
