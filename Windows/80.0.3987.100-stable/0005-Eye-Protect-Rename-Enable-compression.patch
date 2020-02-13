@@ -1,0 +1,85 @@
+From afe94dadc19da9fdd028363197a828dea16cff23 Mon Sep 17 00:00:00 2001
+From: fengberd <admin@berd.moe>
+Date: Thu, 13 Feb 2020 12:01:30 +0800
+Subject: [PATCH 5/6] [Eye Protect] Rename & Enable compression
+
+---
+ chrome/app/chromium_strings.grd          | 4 ++--
+ chrome/installer/linux/debian/build.sh   | 8 ++++----
+ chrome/installer/linux/rpm/build.sh      | 8 ++++----
+ chrome/installer/mini_installer/BUILD.gn | 2 +-
+ 4 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/chrome/app/chromium_strings.grd b/chrome/app/chromium_strings.grd
+index 90228f41336b..ccee0b39e147 100644
+--- a/chrome/app/chromium_strings.grd
++++ b/chrome/app/chromium_strings.grd
+@@ -154,10 +154,10 @@ If you update this file, be sure also to update google_chrome_strings.grd. -->
+       </if>
+ 
+       <message name="IDS_PRODUCT_NAME" desc="The Chrome application name">
+-        Chromium
++        Chromium EyeProtect
+       </message>
+       <message name="IDS_SHORT_PRODUCT_NAME" desc="The Chrome application short name.">
+-        Chromium
++        ChromiumEP
+       </message>
+       <if expr="is_win">
+         <message name="IDS_SXS_SHORTCUT_NAME" desc="Unused in Chromium builds" translateable="false">
+diff --git a/chrome/installer/linux/debian/build.sh b/chrome/installer/linux/debian/build.sh
+index 15f9b0220233..4960a687cf27 100755
+--- a/chrome/installer/linux/debian/build.sh
++++ b/chrome/installer/linux/debian/build.sh
+@@ -118,11 +118,11 @@ do_package() {
+   if [ -f "${DEB_CONTROL}" ]; then
+     gen_control
+   fi
+-  if [ ${IS_OFFICIAL_BUILD} -ne 0 ]; then
++#  if [ ${IS_OFFICIAL_BUILD} -ne 0 ]; then
+     local COMPRESSION_OPTS="-Zxz -z9"
+-  else
+-    local COMPRESSION_OPTS="-Znone"
+-  fi
++#  else
++#    local COMPRESSION_OPTS="-Znone"
++#  fi
+   log_cmd fakeroot dpkg-deb ${COMPRESSION_OPTS} -b "${STAGEDIR}" .
+   verify_package "$DEPENDS"
+ }
+diff --git a/chrome/installer/linux/rpm/build.sh b/chrome/installer/linux/rpm/build.sh
+index 0bcd8689d458..31a79dd5249a 100755
+--- a/chrome/installer/linux/rpm/build.sh
++++ b/chrome/installer/linux/rpm/build.sh
+@@ -93,11 +93,11 @@ do_package() {
+   mkdir -p "$RPMBUILD_DIR/BUILD"
+   mkdir -p "$RPMBUILD_DIR/RPMS"
+ 
+-  if [ ${IS_OFFICIAL_BUILD} -ne 0 ]; then
++#  if [ ${IS_OFFICIAL_BUILD} -ne 0 ]; then
+     local COMPRESSION_OPT="_binary_payload w9.xzdio"
+-  else
+-    local COMPRESSION_OPT="_binary_payload w0.gzdio"
+-  fi
++#  else
++#    local COMPRESSION_OPT="_binary_payload w0.gzdio"
++#  fi
+ 
+   # '__os_install_post ${nil}' disables a bunch of automatic post-processing
+   # (brp-compress, etc.), which by default appears to only be enabled on 32-bit,
+diff --git a/chrome/installer/mini_installer/BUILD.gn b/chrome/installer/mini_installer/BUILD.gn
+index bebec015f85d..095186d60eb1 100644
+--- a/chrome/installer/mini_installer/BUILD.gn
++++ b/chrome/installer/mini_installer/BUILD.gn
+@@ -17,7 +17,7 @@ declare_args() {
+   # the installer. By default: non-official or component builds, a build mode
+   # targeting developers, do not compress so as to provide quicker build-test
+   # cycles.
+-  skip_archive_compression = !is_official_build || is_component_build
++  skip_archive_compression = is_component_build
+ }
+ 
+ config("mini_installer_compiler_flags") {
+-- 
+2.21.0.windows.1
+
