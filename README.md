@@ -51,6 +51,31 @@ The following steps shows you how to start from zero.
  7. Finally, you can use `autoninja -C out/Release chrome` to build chromium
  8. If you want to get an installer (in windows), use `autoninja -C out/Release mini_installer` and pick up `mini_installer.exe` in Release directory.
 
+### Recommended Build Flags / 推荐的构建参数
+```
+is_debug = false
+is_win_fastlink = true
+is_component_build = false
+
+optimize_webui = true
+
+symbol_level = 0
+blink_symbol_level = 0
+
+target_cpu = "x64"
+
+ffmpeg_branding = "Chrome"
+
+proprietary_codecs = true
+
+rtc_use_h264 = true
+
+use_openh264 = true
+
+enable_widevine = true
+enable_mse_mpeg2ts_stream_parser = true
+```
+
 # Android / 安卓版
 ### English
 Due to the lack of sync support, I may not patch the Android Chromium.

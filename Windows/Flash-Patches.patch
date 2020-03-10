@@ -1,0 +1,105 @@
+From 0ec072929c37ef140a3e4219697509e1d34dc582 Mon Sep 17 00:00:00 2001
+From: fengberd <admin@berd.moe>
+Date: Mon, 24 Feb 2020 21:06:57 +0800
+Subject: [PATCH] Flash Patches
+
+---
+ .../flash_deprecation_infobar_delegate.cc     | 40 ++-----------------
+ chrome/browser/plugins/plugin_observer.cc     | 12 ++----
+ 2 files changed, 7 insertions(+), 45 deletions(-)
+
+diff --git a/chrome/browser/plugins/flash_deprecation_infobar_delegate.cc b/chrome/browser/plugins/flash_deprecation_infobar_delegate.cc
+index 23d74e755aec..e99330f6b957 100644
+--- a/chrome/browser/plugins/flash_deprecation_infobar_delegate.cc
++++ b/chrome/browser/plugins/flash_deprecation_infobar_delegate.cc
+@@ -28,24 +28,10 @@
+ 
+ namespace {
+ 
+-constexpr base::TimeDelta kMessageCooldown = base::TimeDelta::FromDays(14);
+-
+ // This duration is the same as the "default browser" banner's duration.
+ constexpr base::TimeDelta kMinimumDurationBeforeExpiryOnNavigation =
+     base::TimeDelta::FromSeconds(8);
+ 
+-bool IsFlashDeprecationWarningCooldownActive(Profile* profile) {
+-  base::Time last_dismissal =
+-      profile->GetPrefs()->GetTime(prefs::kPluginsDeprecationInfobarLastShown);
+-
+-  // More than |kMessageCooldown| days have passed.
+-  if (base::Time::Now() - last_dismissal > kMessageCooldown) {
+-    return false;
+-  }
+-
+-  return true;
+-}
+-
+ void ActivateFlashDeprecationWarningCooldown(Profile* profile) {
+   profile->GetPrefs()->SetTime(prefs::kPluginsDeprecationInfobarLastShown,
+                                base::Time::Now());
+@@ -67,29 +53,9 @@ bool FlashDeprecationInfoBarDelegate::ShouldDisplayFlashDeprecation(
+       HostContentSettingsMapFactory::GetForProfile(profile);
+ 
+   DCHECK(host_content_settings_map);
+-
+-  if (!base::FeatureList::IsEnabled(features::kFlashDeprecationWarning))
+-    return false;
+-
+-  bool is_managed = false;
+-  ContentSetting flash_setting =
+-      PluginUtils::UnsafeGetRawDefaultFlashContentSetting(
+-          host_content_settings_map, &is_managed);
+-
+-  // If the user can't do anything about their browser's Flash behavior
+-  // there's no point to showing a Flash deprecation warning infobar.
+-  //
+-  // Also limit showing the infobar to at most once per |kMessageCooldown|.
+-  // Users should be periodically reminded that they need to take action, but
+-  // if they couldn't take action and turn off flash it's unlikely they will
+-  // able to the next time they start a session. The message become more
+-  // annoying than informative in that case.
+-  if (is_managed || IsFlashDeprecationWarningCooldownActive(profile)) {
+-    return false;
+-  }
+-
+-  // Display the infobar if the Flash setting is anything other than BLOCK.
+-  return flash_setting != CONTENT_SETTING_BLOCK;
++  
++  // ≈¿
++  return false;
+ }
+ 
+ FlashDeprecationInfoBarDelegate::FlashDeprecationInfoBarDelegate(
+diff --git a/chrome/browser/plugins/plugin_observer.cc b/chrome/browser/plugins/plugin_observer.cc
+index 504ec83ed37e..60e7a3522ec1 100644
+--- a/chrome/browser/plugins/plugin_observer.cc
++++ b/chrome/browser/plugins/plugin_observer.cc
+@@ -41,6 +41,7 @@
+ #include "mojo/public/cpp/bindings/remote.h"
+ #include "services/service_manager/public/cpp/interface_provider.h"
+ #include "ui/base/l10n/l10n_util.h"
++#include "chrome/browser/plugins/chrome_plugin_service_filter.h"
+ 
+ using content::PluginService;
+ 
+@@ -202,14 +203,9 @@ void PluginObserver::BlockedOutdatedPlugin(
+   PluginInstaller* installer = NULL;
+   std::unique_ptr<PluginMetadata> plugin;
+   if (finder->FindPluginWithIdentifier(identifier, &installer, &plugin)) {
+-    auto plugin_placeholder = std::make_unique<PluginPlaceholderHost>(
+-        this, plugin->name(), installer, std::move(plugin_renderer));
+-    plugin_placeholders_[plugin_placeholder.get()] =
+-        std::move(plugin_placeholder);
+-
+-    OutdatedPluginInfoBarDelegate::Create(
+-        InfoBarService::FromWebContents(web_contents()), installer,
+-        std::move(plugin));
++    // Do be evil plz @google
++    ChromePluginServiceFilter::GetInstance()->AuthorizeAllPlugins(
++        web_contents(), true, identifier);
+   } else {
+     NOTREACHED();
+   }
+-- 
+2.22.0.windows.1
+
