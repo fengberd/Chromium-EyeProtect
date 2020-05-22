@@ -1,0 +1,171 @@
+From cd3be915c68bfe8b5acffa570fe26f5daad706f5 Mon Sep 17 00:00:00 2001
+From: fengberd <admin@berd.moe>
+Date: Thu, 21 May 2020 09:46:27 +0800
+Subject: [PATCH 1/6] [Eye Protect] Flags add & adjustment
+
+---
+ chrome/browser/about_flags.cc                         |  3 +++
+ .../browser/chromeos/login/chrome_restart_request.cc  |  1 +
+ chrome/browser/flag-metadata.json                     | 11 ++++++++---
+ chrome/browser/flag_descriptions.cc                   |  4 ++++
+ chrome/browser/flag_descriptions.h                    |  3 +++
+ ui/base/pointer/touch_ui_controller.cc                |  3 +++
+ ui/base/pointer/touch_ui_controller.h                 |  2 ++
+ ui/base/ui_base_switches.cc                           |  2 ++
+ ui/base/ui_base_switches.h                            |  2 ++
+ 9 files changed, 28 insertions(+), 3 deletions(-)
+
+diff --git a/chrome/browser/about_flags.cc b/chrome/browser/about_flags.cc
+index 65f76461ec12..3b083d19c8df 100644
+--- a/chrome/browser/about_flags.cc
++++ b/chrome/browser/about_flags.cc
+@@ -2001,6 +2001,9 @@ const FeatureEntry kFeatureEntries[] = {
+     {"top-chrome-touch-ui", flag_descriptions::kTopChromeTouchUiName,
+      flag_descriptions::kTopChromeTouchUiDescription, kOsDesktop,
+      MULTI_VALUE_TYPE(kTopChromeTouchUiChoices)},
++    {"eye-protection", flag_descriptions::kEyeProtectionName,
++     flag_descriptions::kEyeProtectionDescription, kOsDesktop,
++     SINGLE_VALUE_TYPE(switches::kEyeProtection)},
+ #if BUILDFLAG(ENABLE_WEBUI_TAB_STRIP)
+     {"webui-tab-strip", flag_descriptions::kWebUITabStripName,
+      flag_descriptions::kWebUITabStripDescription, kOsDesktop,
+diff --git a/chrome/browser/chromeos/login/chrome_restart_request.cc b/chrome/browser/chromeos/login/chrome_restart_request.cc
+index 933ea4259fff..0c20d0528a88 100644
+--- a/chrome/browser/chromeos/login/chrome_restart_request.cc
++++ b/chrome/browser/chromeos/login/chrome_restart_request.cc
+@@ -146,6 +146,7 @@ void DeriveCommandLine(const GURL& start_url,
+     ::switches::kTouchDevices,
+     ::switches::kTouchEventFeatureDetection,
+     ::switches::kTopChromeTouchUi,
++    ::switches::kEyeProtection,
+     ::switches::kTraceToConsole,
+     ::switches::kUIDisablePartialSwap,
+ #if defined(USE_CRAS)
+diff --git a/chrome/browser/flag-metadata.json b/chrome/browser/flag-metadata.json
+index 7cfa637a7769..d10f4dab0d92 100644
+--- a/chrome/browser/flag-metadata.json
++++ b/chrome/browser/flag-metadata.json
+@@ -3151,17 +3151,17 @@
+   {
+     "name": "omnibox-ui-hide-steady-state-url-path-query-and-ref",
+     "owners": [ "tommycli", "chrome-omnibox-team@google.com" ],
+-    "expiry_milestone": 76
++    "expiry_milestone": -1
+   },
+   {
+     "name": "omnibox-ui-hide-steady-state-url-scheme",
+     "owners": [ "tommycli", "chrome-omnibox-team@google.com" ],
+-    "expiry_milestone": 76
++    "expiry_milestone": -1
+   },
+   {
+     "name": "omnibox-ui-hide-steady-state-url-trivial-subdomains",
+     "owners": [ "tommycli", "chrome-omnibox-team@google.com" ],
+-    "expiry_milestone": 76
++    "expiry_milestone": -1
+   },
+   {
+     "name": "omnibox-ui-max-autocomplete-matches",
+@@ -4175,5 +4175,10 @@
+     "name": "zero-state-files",
+     "owners": [ "tby", "jiameng" ],
+     "expiry_milestone": 82
++  },
++  { // I dont care about the alpha order cuz this wont be commited to chromium project :/
++    "name": "eye-protection",
++    "owners": [ "admin@berd.moe" ],
++    "expiry_milestone": -1
+   }
+ ]
+diff --git a/chrome/browser/flag_descriptions.cc b/chrome/browser/flag_descriptions.cc
+index e80fab827621..2402b03ce856 100644
+--- a/chrome/browser/flag_descriptions.cc
++++ b/chrome/browser/flag_descriptions.cc
+@@ -1950,6 +1950,10 @@ const char kTopChromeTouchUiName[] = "Touch UI Layout";
+ const char kTopChromeTouchUiDescription[] =
+     "Enables touch UI layout in the browser's top chrome.";
+ 
++const char kEyeProtectionName[] = "Eye Protection";
++const char kEyeProtectionDescription[] =
++    "Protect your eyes from being hurt by Material Disaster 2";
++
+ const char kThreadedScrollingName[] = "Threaded scrolling";
+ const char kThreadedScrollingDescription[] =
+     "Threaded handling of scroll-related input events. Disabling this will "
+diff --git a/chrome/browser/flag_descriptions.h b/chrome/browser/flag_descriptions.h
+index 7672b58e6a25..e349c5c406c8 100644
+--- a/chrome/browser/flag_descriptions.h
++++ b/chrome/browser/flag_descriptions.h
+@@ -1126,6 +1126,9 @@ extern const char kTLS13HardeningForLocalAnchorsDescription[];
+ extern const char kTopChromeTouchUiName[];
+ extern const char kTopChromeTouchUiDescription[];
+ 
++extern const char kEyeProtectionName[];
++extern const char kEyeProtectionDescription[];
++
+ extern const char kThreadedScrollingName[];
+ extern const char kThreadedScrollingDescription[];
+ 
+diff --git a/ui/base/pointer/touch_ui_controller.cc b/ui/base/pointer/touch_ui_controller.cc
+index 2726e035116f..3fe158fdd7e1 100644
+--- a/ui/base/pointer/touch_ui_controller.cc
++++ b/ui/base/pointer/touch_ui_controller.cc
+@@ -21,6 +21,8 @@
+ 
+ namespace ui {
+ 
++bool TouchUiController::eye_protection = false;
++
+ #if defined(OS_WIN)
+ namespace {
+ 
+@@ -59,6 +61,7 @@ TouchUiController* TouchUiController::Get() {
+ 
+ TouchUiController::TouchUiController(TouchUiState touch_ui_state)
+     : touch_ui_state_(touch_ui_state) {
++  eye_protection = base::CommandLine::ForCurrentProcess()->HasSwitch(switches::kEyeProtection);
+ #if defined(OS_WIN)
+   if (base::MessageLoopCurrentForUI::IsSet() &&
+       (base::win::GetVersion() >= base::win::Version::WIN10)) {
+diff --git a/ui/base/pointer/touch_ui_controller.h b/ui/base/pointer/touch_ui_controller.h
+index cecd4ddcc690..19b161a56f6d 100644
+--- a/ui/base/pointer/touch_ui_controller.h
++++ b/ui/base/pointer/touch_ui_controller.h
+@@ -56,6 +56,8 @@ class UI_BASE_EXPORT TouchUiController {
+            ((touch_ui_state_ == TouchUiState::kAuto) && tablet_mode_);
+   }
+ 
++  static bool eye_protection;
++
+   std::unique_ptr<Subscription> RegisterCallback(
+       const base::RepeatingClosure& closure);
+ 
+diff --git a/ui/base/ui_base_switches.cc b/ui/base/ui_base_switches.cc
+index 712aa67bf992..2f7dcc859c40 100644
+--- a/ui/base/ui_base_switches.cc
++++ b/ui/base/ui_base_switches.cc
+@@ -91,6 +91,8 @@ const char kTopChromeTouchUiAuto[] = "auto";
+ const char kTopChromeTouchUiDisabled[] = "disabled";
+ const char kTopChromeTouchUiEnabled[] = "enabled";
+ 
++const char kEyeProtection[] = "eye-protection";
++
+ // Disable partial swap which is needed for some OpenGL drivers / emulators.
+ const char kUIDisablePartialSwap[] = "ui-disable-partial-swap";
+ 
+diff --git a/ui/base/ui_base_switches.h b/ui/base/ui_base_switches.h
+index 26b8dbf13a1e..5620713b4cd9 100644
+--- a/ui/base/ui_base_switches.h
++++ b/ui/base/ui_base_switches.h
+@@ -43,6 +43,8 @@ UI_BASE_EXPORT extern const char kUseSystemClipboard[];
+ UI_BASE_EXPORT extern const char kDisallowNonExactResourceReuse[];
+ UI_BASE_EXPORT extern const char kMangleLocalizedStrings[];
+ 
++UI_BASE_EXPORT extern const char kEyeProtection[];
++
+ }  // namespace switches
+ 
+ #endif  // UI_BASE_UI_BASE_SWITCHES_H_
+-- 
+2.24.1.windows.2
+
