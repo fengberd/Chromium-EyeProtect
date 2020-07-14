@@ -34,9 +34,9 @@ Chromium-EyeProtect 是 [Chromium Browser](https://www.chromium.org/Home) 的一
 # Pre-Built Binaries / 预编译安装包
 - OneDrive: [Link](https://fengberd-my.sharepoint.com/:f:/g/personal/admin_berd_moe/EgfAnbvVaB5KucXzZ7VXSMwB_1c1EFyokgcc2m8ZUb3m2A?e=YuAFcz)
 	- Builds for v77 and later, Windows and Linux.
-- 百度云 (BaiduCloud): [Link](https://pan.baidu.com/s/1o_jbSlPvJ9jyC-AnebLFjA)
+- 百度云 (BaiduCloud): [Link](https://pan.baidu.com/s/1thxPa6ARQ5jC9HBLY7dXZw)
 	- Chinese cloud drive.
-	- 提取码 (Passcode): `edfb`
+	- 提取码 (Passcode): `dhx8`
 	- Including v74, v75, v77 and later, Windows and Linux.
 
 # Building / 构建
