@@ -1,0 +1,1172 @@
+From 3b67ea5a0b92310e773d71258ccb188fa0bcff61 Mon Sep 17 00:00:00 2001
+From: fengberd <admin@berd.moe>
+Date: Thu, 21 May 2020 12:18:41 +0800
+Subject: [PATCH 2/6] [Eye Protect] Tab Strip & New Tab Button
+
+---
+ chrome/browser/themes/theme_helper.cc         |  11 +
+ chrome/browser/themes/theme_properties.cc     |  49 ++
+ chrome/browser/ui/layout_constants.cc         |  24 +
+ chrome/browser/ui/tabs/tab_style.cc           |  11 +
+ .../browser/ui/views/tabs/new_tab_button.cc   | 228 +++++++-
+ chrome/browser/ui/views/tabs/new_tab_button.h |   2 +
+ chrome/browser/ui/views/tabs/tab.cc           |   8 +-
+ chrome/browser/ui/views/tabs/tab_strip.cc     |  46 +-
+ chrome/browser/ui/views/tabs/tab_style_ep.cc  | 530 ++++++++++++++++++
+ .../browser/ui/views/tabs/tab_style_views.cc  |   6 +
+ 10 files changed, 912 insertions(+), 3 deletions(-)
+ create mode 100644 chrome/browser/ui/views/tabs/tab_style_ep.cc
+
+diff --git a/chrome/browser/themes/theme_helper.cc b/chrome/browser/themes/theme_helper.cc
+index 6122f95c3135..3c4c72424c97 100644
+--- a/chrome/browser/themes/theme_helper.cc
++++ b/chrome/browser/themes/theme_helper.cc
+@@ -18,6 +18,8 @@
+ #include "ui/native_theme/common_theme.h"
+ #include "ui/native_theme/native_theme.h"
+ 
++#include "ui/base/pointer/touch_ui_controller.h"
++
+ namespace {
+ 
+ using TP = ThemeProperties;
+@@ -306,6 +308,15 @@ SkColor ThemeHelper::GetDefaultColor(
+     int id,
+     bool incognito,
+     const CustomThemeSupplier* theme_supplier) const {
++  if (ui::TouchUiController::eye_protection) {
++    switch (id) {
++      case TP::COLOR_TAB_BACKGROUND_INACTIVE_FRAME_ACTIVE:
++      case TP::COLOR_TAB_BACKGROUND_INACTIVE_FRAME_INACTIVE:
++        return incognito ? SkColorSetRGB(0x37, 0x37, 0x37)
++                         : SkColorSetRGB(0xd0, 0xd0, 0xd0);
++    }
++  }
++
+   if (TP::COLOR_TAB_GROUP_TABSTRIP_FRAME_ACTIVE_GREY <= id &&
+       id <= TP::COLOR_TAB_GROUP_CONTEXT_MENU_CYAN)
+     return GetTabGroupColor(id, incognito, theme_supplier);
+diff --git a/chrome/browser/themes/theme_properties.cc b/chrome/browser/themes/theme_properties.cc
+index 55cf198d4850..064b6f70476f 100644
+--- a/chrome/browser/themes/theme_properties.cc
++++ b/chrome/browser/themes/theme_properties.cc
+@@ -19,6 +19,8 @@
+ #include <windows.h>
+ #endif
+ 
++#include "ui/base/pointer/touch_ui_controller.h"
++
+ namespace {
+ 
+ // Strings used in alignment properties.
+@@ -311,6 +313,53 @@ color_utils::HSL ThemeProperties::GetDefaultTint(int id,
+ SkColor ThemeProperties::GetDefaultColor(int id,
+                                          bool incognito,
+                                          bool dark_mode) {
++  if (ui::TouchUiController::eye_protection) {
++    bool kindOfDark = incognito || dark_mode;
++    // Don't modify GetIncognitoColor, which would make further maintaince
++    // harder.
++    switch (id) {
++      case COLOR_FRAME_ACTIVE:
++        return kindOfDark ? SkColorSetRGB(0x28, 0x2B, 0x2D)
++                          : SkColorSetRGB(0xCC, 0xCC, 0xCC);
++      case COLOR_FRAME_INACTIVE:
++        return kindOfDark ? SkColorSetRGB(0x38, 0x3B, 0x3D)
++                          : SkColorSetRGB(0xF5, 0xF5, 0xF5);
++      case COLOR_TAB_BACKGROUND_ACTIVE_FRAME_ACTIVE:
++      case COLOR_TAB_BACKGROUND_ACTIVE_FRAME_INACTIVE:
++        return kindOfDark ? SkColorSetRGB(0x50, 0x50, 0x50)
++                          : SkColorSetRGB(0xf2, 0xf2, 0xf2);
++      case COLOR_TOOLBAR:
++        return kindOfDark ? SkColorSetRGB(0x50, 0x50, 0x50)
++                          : SkColorSetRGB(0xF2, 0xF2, 0xF2);
++      case COLOR_TAB_FOREGROUND_ACTIVE_FRAME_ACTIVE:
++      case COLOR_TAB_FOREGROUND_ACTIVE_FRAME_INACTIVE:
++      case COLOR_TAB_FOREGROUND_INACTIVE_FRAME_ACTIVE:
++      case COLOR_TAB_FOREGROUND_INACTIVE_FRAME_INACTIVE:
++      case COLOR_BOOKMARK_TEXT:
++        return kindOfDark ? SK_ColorWHITE : SK_ColorBLACK;
++      case COLOR_NTP_BACKGROUND:
++        if (kindOfDark) {
++          return SkColorSetRGB(0x32, 0x36, 0x39);
++        }
++#if defined(OS_WIN)
++        return color_utils::GetSysSkColor(COLOR_WINDOW);
++#else
++        return SK_ColorWHITE;
++#endif
++      case COLOR_TOOLBAR_CONTENT_AREA_SEPARATOR:
++        return kindOfDark ? SkColorSetRGB(0x28, 0x28, 0x28)
++                          : SkColorSetRGB(0xB6, 0xB4, 0xB6);
++      case COLOR_TOOLBAR_TOP_SEPARATOR:
++      case COLOR_TOOLBAR_TOP_SEPARATOR_INACTIVE:
++        return SkColorSetA(SK_ColorBLACK, 0x40);
++      case COLOR_TAB_ALERT_RECORDING:
++        return SkColorSetRGB(0xC5, 0x39, 0x29);
++      case COLOR_TAB_ALERT_CAPTURING:
++        return SkColorSetRGB(0x42, 0x85, 0xF4);
++      default:
++        break;
++    }
++  }
+   if (incognito) {
+     base::Optional<SkColor> incognito_color = GetIncognitoColor(id);
+     if (incognito_color.has_value())
+diff --git a/chrome/browser/ui/layout_constants.cc b/chrome/browser/ui/layout_constants.cc
+index 3921f6e3ec21..7aee431dfb84 100644
+--- a/chrome/browser/ui/layout_constants.cc
++++ b/chrome/browser/ui/layout_constants.cc
+@@ -28,6 +28,30 @@ int GetCocoaLayoutConstant(LayoutConstant constant) {
+ 
+ int GetLayoutConstant(LayoutConstant constant) {
+   const bool touch_ui = ui::TouchUiController::Get()->touch_ui();
++  if (ui::TouchUiController::eye_protection) {
++    // Easier to merge if we write like that
++    switch (constant) {
++      case BOOKMARK_BAR_BUTTON_HEIGHT:
++        return touch_ui ? 36 : 26;
++      case BOOKMARK_BAR_HEIGHT:
++        return touch_ui ? 40 : 32;
++      case TAB_ALERT_INDICATOR_CAPTURE_ICON_WIDTH:
++        return 16;
++      case TAB_ALERT_INDICATOR_ICON_WIDTH:
++        return touch_ui ? 12 : 16;
++      case TAB_HEIGHT:
++        return (touch_ui ? 41 : 29) +
++               GetLayoutConstant(TABSTRIP_TOOLBAR_OVERLAP);
++      case TAB_PRE_TITLE_PADDING:
++        return 6;
++      case TAB_STACK_DISTANCE:
++        return touch_ui ? 4 : 6;
++      case TABSTRIP_TOOLBAR_OVERLAP:
++        return 0;
++      default:
++        break;
++    }
++  }
+   switch (constant) {
+     case BOOKMARK_BAR_HEIGHT:
+       // The fixed margin ensures the bookmark buttons appear centered relative
+diff --git a/chrome/browser/ui/tabs/tab_style.cc b/chrome/browser/ui/tabs/tab_style.cc
+index ccf846d78009..3a835c472d68 100644
+--- a/chrome/browser/ui/tabs/tab_style.cc
++++ b/chrome/browser/ui/tabs/tab_style.cc
+@@ -24,6 +24,9 @@ TabStyle::~TabStyle() = default;
+ 
+ // static
+ int TabStyle::GetStandardWidth() {
++  if (ui::TouchUiController::eye_protection)
++    return (ui::TouchUiController::Get()->touch_ui() ? 245 : 193) +
++           GetContentsHorizontalInsetSize();
+   // The standard tab width is 240 DIP including both separators.
+   constexpr int kTabWidth = 240;
+   // The overlap includes one separator, so subtract it here.
+@@ -38,6 +41,8 @@ int TabStyle::GetPinnedWidth() {
+ 
+ // static
+ int TabStyle::GetTabOverlap() {
++  if (ui::TouchUiController::eye_protection)
++    return ui::TouchUiController::Get()->touch_ui() ? 24 : 16;
+   return GetCornerRadius() * 2 + kSeparatorThickness;
+ }
+ 
+@@ -48,11 +53,15 @@ int TabStyle::GetDragHandleExtension(int height) {
+ 
+ // static
+ gfx::Insets TabStyle::GetTabInternalPadding() {
++  if (ui::TouchUiController::eye_protection)
++    return gfx::Insets(0, 16);
+   return gfx::Insets(0, GetCornerRadius());
+ }
+ 
+ // static
+ gfx::Size TabStyle::GetSeparatorSize() {
++  if (ui::TouchUiController::eye_protection)
++    return gfx::Size(0, GetSeparatorHeight());
+   return gfx::Size(kSeparatorThickness, GetSeparatorHeight());
+ }
+ 
+@@ -71,5 +80,7 @@ int TabStyle::GetCornerRadius() {
+ 
+ // static
+ int TabStyle::GetContentsHorizontalInsetSize() {
++  if (ui::TouchUiController::eye_protection)
++    return ui::TouchUiController::Get()->touch_ui() ? 24 : 16;
+   return GetCornerRadius() * 2;
+ }
+diff --git a/chrome/browser/ui/views/tabs/new_tab_button.cc b/chrome/browser/ui/views/tabs/new_tab_button.cc
+index 80709a25950a..51bd99bf5e10 100644
+--- a/chrome/browser/ui/views/tabs/new_tab_button.cc
++++ b/chrome/browser/ui/views/tabs/new_tab_button.cc
+@@ -35,6 +35,214 @@
+ #include "ui/display/win/screen_win.h"
+ #include "ui/views/win/hwnd_util.h"
+ #endif
++#include "third_party/skia/include/core/SkColorFilter.h"
++#include "third_party/skia/include/core/SkMaskFilter.h"
++#include "third_party/skia/include/effects/SkLayerDrawLooper.h"
++#include "third_party/skia/include/pathops/SkPathOps.h"
++#include "ui/gfx/color_palette.h"
++#include "ui/gfx/paint_vector_icon.h"
++
++using MD = ui::TouchUiController;
++
++namespace eye_protection {
++sk_sp<SkDrawLooper> CreateShadowDrawLooper(SkColor color) {
++  SkLayerDrawLooper::Builder looper_builder;
++  looper_builder.addLayer();
++
++  SkLayerDrawLooper::LayerInfo layer_info;
++  layer_info.fPaintBits |= SkLayerDrawLooper::kMaskFilter_Bit;
++  layer_info.fPaintBits |= SkLayerDrawLooper::kColorFilter_Bit;
++  layer_info.fColorMode = SkBlendMode::kDst;
++  layer_info.fOffset.set(0, 1);
++  SkPaint* layer_paint = looper_builder.addLayer(layer_info);
++  layer_paint->setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, 0.5));
++  layer_paint->setColorFilter(
++      SkColorFilters::Blend(color, SkBlendMode::kSrcIn));
++  return looper_builder.detach();
++}
++
++SkPath GetButtonPathEP(int button_y,
++                       int button_height,
++                       int button_width,
++                       float scale,
++                       bool extend_to_top,
++                       bool for_fill) {
++  const float inverse_slope =
++      (ui::TouchUiController::Get()->touch_ui() ? 19.5f : 11.5f) / (GetLayoutConstant(TAB_HEIGHT) - 4);
++  float bottom = (button_height - 2) * scale;  // -2已减去stroke的尺寸
++  const float diag_height = bottom - 3.5 * scale;
++  const float diag_width = diag_height * inverse_slope;
++  const float right = diag_width + 4 * scale;
++  const int stroke_thickness = for_fill ? 0 : 1;
++
++  if (ui::TouchUiController::Get()->touch_ui()) {
++    button_y -= 10;
++  }
++
++  bottom += button_y + stroke_thickness;
++
++  SkPath path;
++  path.moveTo(right - stroke_thickness,
++              bottom);  // 移动到右下角, 不计stroke, 后面画的应该都是镜像,
++                        // comment写的是实际位置
++  path.rCubicTo(-0.75 * scale, 0, -1.625 * scale, -0.5 * scale, -2 * scale,
++                -1.5 * scale);              // 左下角的弧
++  path.rLineTo(-diag_width, -diag_height);  // 左边的 \ 形
++  if (extend_to_top) {
++    // Create the vertical extension by extending the side diagonals at the
++    // upper left and lower right corners until they reach the top and bottom of
++    // the border, respectively (in other words, "un-round-off" those corners
++    // and turn them into sharp points).  Then extend upward from the corner
++    // points to the top of the bounds.
++    // 这里画出来的没弧 都是尖的
++    const float dy = scale + stroke_thickness * 2;
++    const float dx = inverse_slope * dy;
++    path.rLineTo(-dx, -dy);
++    path.rLineTo(0, -button_y - scale + stroke_thickness);
++    path.lineTo((button_width - 2) * scale + stroke_thickness + dx, 0);
++    path.rLineTo(0, bottom);
++  } else {
++    // 左上角的弧
++    if (for_fill) {
++      path.rCubicTo(0, -0.5 * scale, 0.25 * scale, -scale, scale, -scale);
++    } else {
++      path.rCubicTo(-0.5 * scale, -1.125 * scale, 0.5 * scale,
++                    -scale - 2 * stroke_thickness, scale,
++                    -scale - 2 * stroke_thickness);
++    }
++    // 顶部的横线
++    path.lineTo((button_width - 4) * scale - diag_width + stroke_thickness,
++                button_y + scale - stroke_thickness);
++    // 右上角的弧
++    path.rCubicTo(0.75 * scale, 0, 1.625 * scale, 0.5 * scale, 2 * scale,
++                  1.5 * scale);
++    // 右边的 \ 形
++    path.rLineTo(diag_width, diag_height);
++    // 右下角的弧
++    if (for_fill) {
++      path.rCubicTo(0, 0.5 * scale, -0.25 * scale, scale, -scale, scale);
++    } else {
++      path.rCubicTo(0.5 * scale, 1.125 * scale, -0.5 * scale,
++                    scale + 2 * stroke_thickness, -scale,
++                    scale + 2 * stroke_thickness);
++    }
++  }
++  path.close();
++  return path;
++}
++}  // namespace eye_protection
++
++void NewTabButton::PaintButtonContentsEP(gfx::Canvas* canvas) {
++  const gfx::Rect contents_bounds = GetContentsBounds();
++
++  canvas->Translate(contents_bounds.OffsetFromOrigin());
++
++  gfx::ScopedCanvas scoped_canvas(canvas);
++  canvas->UndoDeviceScaleFactor();
++
++  const float scale = canvas->image_scale();
++  const bool pressed = state() == views::Button::STATE_PRESSED;
++  const SkColor stroke_color =
++      new_tab_promo_observer_.IsObservingSources()
++          ? color_utils::AlphaBlend(
++                SK_ColorBLACK,
++                GetNativeTheme()->GetSystemColor(
++                    ui::NativeTheme::kColorId_ProminentButtonColor),
++                (SkAlpha)0x70)
++          : tab_strip_->GetToolbarTopSeparatorColor();
++  int height = contents_bounds.height(), width = contents_bounds.width();
++
++  SkPath fill = eye_protection::GetButtonPathEP(0, height, width, scale, false,
++                                                true),
++         stroke = eye_protection::GetButtonPathEP(0, height, width, scale,
++                                                  false, false);
++
++  // Paint Fill
++  {
++    cc::PaintFlags flags;
++    flags.setAntiAlias(true);
++    // For unpressed buttons, draw the fill and its shadow.
++    // Note that for newer UI, we always draw the fill since the button
++    // has a flat design. Hover highlights are handled by the ink drop.
++    if (!pressed) {
++      // First we compute the background image coordinates and scale, in case
++      // we need to draw a custom background image.
++      const ui::ThemeProvider* tp = GetThemeProvider();
++      const base::Optional<int> bg_id = tab_strip_->GetCustomBackgroundId(
++          BrowserFrameActiveState::kUseCurrent);
++      if (bg_id.has_value() && !new_tab_promo_observer_.IsObservingSources()) {
++        // For non-refresh touch UI, the background is that of the active tab,
++        // so the positioning must match that in Tab::PaintTab().
++        const int offset_y = 0;
++        // The new tab background is mirrored in RTL mode, but the theme
++        // background should never be mirrored. Mirror it here to compensate.
++        float x_scale = 1.0f;
++        int x = GetMirroredX() + contents_bounds.x() +
++                tab_strip_->GetBackgroundOffset();
++        if (base::i18n::IsRTL()) {
++          x_scale = -1.0f;
++          // Offset by |width| such that the same region is painted as if
++          // there was no flip.
++          x += contents_bounds.width();
++        }
++        const bool succeeded = canvas->InitPaintFlagsForTiling(
++            *tp->GetImageSkiaNamed(bg_id.value()), x,
++            contents_bounds.y() + offset_y, x_scale * scale, scale, 0, 0,
++            SkTileMode::kRepeat, SkTileMode::kRepeat, &flags);
++        DCHECK(succeeded);
++      } else {
++        flags.setColor(GetButtonFillColor());
++      }
++
++      cc::PaintFlags shadow_flags = flags;
++      const SkColor stroke_color = tab_strip_->GetToolbarTopSeparatorColor();
++      const SkAlpha alpha = static_cast<SkAlpha>(
++          std::round(SkColorGetA(stroke_color) * 0.59375f));
++      shadow_flags.setLooper(eye_protection::CreateShadowDrawLooper(
++          SkColorSetA(stroke_color, alpha)));
++      canvas->DrawPath(fill, shadow_flags);
++    }
++
++    // Draw a white highlight on hover.
++    const SkAlpha hover_alpha =
++        static_cast<SkAlpha>(hover_animation().CurrentValueBetween(0x00, 0x4D));
++    if (hover_alpha != SK_AlphaTRANSPARENT) {
++      flags.setColor(SkColorSetA(SK_ColorWHITE, hover_alpha));
++      canvas->DrawPath(fill, flags);
++    }
++
++    // Most states' opacities are adjusted using an opacity recorder in
++    // TabStrip::PaintChildren(), but the pressed state is excluded there and
++    // instead rendered using a dark overlay here.  Avoiding the use of the
++    // opacity recorder keeps the stroke more visible in this state.
++    if (pressed) {
++      flags.setColor(GetButtonFillColor());
++      canvas->DrawPath(fill, flags);
++    }
++  }
++
++  // Paint Stroke
++  {
++    if (pressed)
++      canvas->ClipPath(stroke, true);
++    Op(stroke, fill, kDifference_SkPathOp, &stroke);
++    if (!pressed)
++      canvas->sk_canvas()->clipPath(fill, SkClipOp::kDifference, true);
++    // Now draw the stroke and shadow; the stroke will always be visible,
++    // while the shadow will be affected by the clip we set above.
++    cc::PaintFlags flags;
++    flags.setAntiAlias(true);
++    const float alpha = SkColorGetA(stroke_color);
++    const SkAlpha shadow_alpha =
++        base::saturated_cast<SkAlpha>(std::round(2.1875f * alpha));
++    flags.setLooper(eye_protection::CreateShadowDrawLooper(
++        SkColorSetA(stroke_color, shadow_alpha)));
++    const SkAlpha path_alpha = static_cast<SkAlpha>(
++        std::round((pressed ? 0.875f : 0.609375f) * alpha));
++    flags.setColor(SkColorSetA(stroke_color, path_alpha));
++    canvas->DrawPath(stroke, flags);
++  }
++}
+ 
+ #if BUILDFLAG(ENABLE_LEGACY_DESKTOP_IN_PRODUCT_HELP)
+ #include "chrome/browser/feature_engagement/new_tab/new_tab_tracker.h"
+@@ -92,7 +300,7 @@ NewTabButton::NewTabButton(TabStrip* tab_strip, views::ButtonListener* listener)
+   ink_drop_container_ =
+       AddChildView(std::make_unique<views::InkDropContainerView>());
+ 
+-  SetInkDropMode(InkDropMode::ON);
++  SetInkDropMode(MD::eye_protection ? InkDropMode::OFF : InkDropMode::ON);
+   set_ink_drop_highlight_opacity(0.16f);
+   set_ink_drop_visible_opacity(0.14f);
+ 
+@@ -195,6 +403,10 @@ void NewTabButton::NotifyClick(const ui::Event& event) {
+ }
+ 
+ void NewTabButton::PaintButtonContents(gfx::Canvas* canvas) {
++  if (MD::eye_protection) {
++    PaintButtonContentsEP(canvas);
++    return;
++  }
+   gfx::ScopedCanvas scoped_canvas(canvas);
+   canvas->Translate(GetContentsBounds().OffsetFromOrigin());
+   PaintFill(canvas);
+@@ -203,6 +415,13 @@ void NewTabButton::PaintButtonContents(gfx::Canvas* canvas) {
+ 
+ gfx::Size NewTabButton::CalculatePreferredSize() const {
+   gfx::Size size = kButtonSize;
++  if (MD::eye_protection) {
++    if (ui::TouchUiController::Get()->touch_ui()) {
++      size = {48, 28};
++    } else {
++      size = {36, 18};
++    }
++  }
+   const auto insets = GetInsets();
+   size.Enlarge(insets.width(), insets.height());
+   return size;
+@@ -215,6 +434,8 @@ bool NewTabButton::GetHitTestMask(SkPath* mask) const {
+   // TODO(pkasting): Fitts' Law horizontally when appropriate.
+   SkPath border = GetBorderPath(GetContentsBounds().origin(), scale,
+                                 tab_strip_->controller()->IsFrameCondensed());
++  if (MD::eye_protection)
++    border.offset(GetContentsBounds().origin().x(), 0);
+   mask->addPath(border, SkMatrix::MakeScale(1 / scale));
+   return true;
+ }
+@@ -313,6 +534,11 @@ SkColor NewTabButton::GetButtonFillColor() const {
+ SkPath NewTabButton::GetBorderPath(const gfx::Point& origin,
+                                    float scale,
+                                    bool extend_to_top) const {
++  if (MD::eye_protection) {
++    return eye_protection::GetButtonPathEP(
++        origin.y() * scale, GetContentsBounds().height(),
++        GetContentsBounds().width(), scale, extend_to_top, false);
++  }
+   gfx::PointF scaled_origin(origin);
+   scaled_origin.Scale(scale);
+   const float radius = GetCornerRadius() * scale;
+diff --git a/chrome/browser/ui/views/tabs/new_tab_button.h b/chrome/browser/ui/views/tabs/new_tab_button.h
+index be79ae1321ed..ba56dfea668a 100644
+--- a/chrome/browser/ui/views/tabs/new_tab_button.h
++++ b/chrome/browser/ui/views/tabs/new_tab_button.h
+@@ -122,6 +122,8 @@ class NewTabButton : public views::ImageButton,
+   // open and get called back when it closes.
+   ScopedObserver<views::Widget, WidgetObserver> new_tab_promo_observer_{this};
+ 
++  void PaintButtonContentsEP(gfx::Canvas* canvas);
++
+   DISALLOW_COPY_AND_ASSIGN(NewTabButton);
+ };
+ 
+diff --git a/chrome/browser/ui/views/tabs/tab.cc b/chrome/browser/ui/views/tabs/tab.cc
+index e5aa74073aee..82388f0037e1 100644
+--- a/chrome/browser/ui/views/tabs/tab.cc
++++ b/chrome/browser/ui/views/tabs/tab.cc
+@@ -294,7 +294,8 @@ void Tab::Layout() {
+   int start = contents_rect.x();
+   if (extra_padding_before_content_) {
+     constexpr int kExtraLeftPaddingToBalanceCloseButtonPadding = 4;
+-    start += kExtraLeftPaddingToBalanceCloseButtonPadding;
++    start +=
++        ui::TouchUiController::eye_protection ? 2 : kExtraLeftPaddingToBalanceCloseButtonPadding;
+   }
+ 
+   // The bounds for the favicon will include extra width for the attention
+@@ -701,6 +702,11 @@ void Tab::PaintChildren(const views::PaintInfo& info) {
+ }
+ 
+ void Tab::OnPaint(gfx::Canvas* canvas) {
++  // Don't paint if we're narrower than we can render correctly. (This should
++  // only happen during animations).
++  // FENGberd: Not sure if we really need this now.
++  if (ui::TouchUiController::eye_protection && width() < 16)
++    return;
+   tab_style()->PaintTab(canvas);
+ }
+ 
+diff --git a/chrome/browser/ui/views/tabs/tab_strip.cc b/chrome/browser/ui/views/tabs/tab_strip.cc
+index 595a2af25eb7..fe59bd0f0be5 100644
+--- a/chrome/browser/ui/views/tabs/tab_strip.cc
++++ b/chrome/browser/ui/views/tabs/tab_strip.cc
+@@ -103,6 +103,9 @@
+ #include "ui/aura/window.h"
+ #endif
+ 
++#include "ui/compositor/paint_recorder.h"
++using MD = ui::TouchUiController;
++
+ namespace {
+ 
+ // Distance from the next/previous stacked before before we consider the tab
+@@ -1391,6 +1394,10 @@ bool TabStrip::ShouldDrawStrokes() const {
+   if (!controller_->CanDrawStrokes())
+     return false;
+ 
++  // Just draw it cuz we always have strokes in old tab style
++  if (MD::eye_protection)
++    return true;
++
+   // The tabstrip normally avoids strokes and relies on the active tab
+   // contrasting sufficiently with the frame background.  When there isn't
+   // enough contrast, fall back to a stroke.  Always compute the contrast ratio
+@@ -2054,7 +2061,7 @@ void TabStrip::PaintChildren(const views::PaintInfo& paint_info) {
+   // this code defers drawing such tabs until later.
+   const auto paint_or_add_to_tabs = [&paint_info,
+                                      &selected_and_hovered_tabs](Tab* tab) {
+-    if (tab->tab_style()->GetZValue() > 0.0) {
++    if (!MD::eye_protection && tab->tab_style()->GetZValue() > 0.0) {
+       selected_and_hovered_tabs.push_back(tab);
+     } else {
+       tab->Paint(paint_info);
+@@ -2163,6 +2170,32 @@ void TabStrip::PaintChildren(const views::PaintInfo& paint_info) {
+   if (active_tab && is_dragging)
+     active_tab->Paint(paint_info);
+ 
++  if (MD::eye_protection) {
++    ui::PaintRecorder recorder(paint_info.context(),
++                               paint_info.paint_recording_size(),
++                               paint_info.paint_recording_scale_x(),
++                               paint_info.paint_recording_scale_y(), nullptr);
++    gfx::Canvas* canvas = recorder.canvas();
++    if (active_tab && active_tab->GetVisible()) {
++      canvas->sk_canvas()->clipRect(
++          gfx::RectToSkRect(active_tab->GetMirroredBounds()),
++          SkClipOp::kDifference);
++    }
++    // Paint Toolbar Top Separator
++    const gfx::Rect& bounds = GetLocalBounds();
++    const float thickness = 1 / canvas->image_scale();
++    cc::PaintFlags flags;
++    flags.setColor(GetToolbarTopSeparatorColor());
++    flags.setStyle(cc::PaintFlags::kFill_Style);
++    canvas->sk_canvas()->drawRect(
++        RectFToSkRect(gfx::RectF(
++            bounds.x(),
++            bounds.bottom() - GetLayoutConstant(TABSTRIP_TOOLBAR_OVERLAP) -
++                thickness,
++            bounds.width(), thickness)),
++        flags);
++  }
++
+   UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+       "TabStrip.PaintChildrenDuration", paint_timer.Elapsed(),
+       base::TimeDelta::FromMicroseconds(1),
+@@ -2523,6 +2556,9 @@ bool TabStrip::ShouldHighlightCloseButtonAfterRemove() {
+ }
+ 
+ int TabStrip::TabToNewTabButtonSpacing() const {
++  if (MD::eye_protection) {
++    return MD::Get()->touch_ui() ? -12 : -5;
++  }
+   // The new tab button contains built-in padding, and should be placed flush
+   // against the trailing separator.
+   return -TabStyle::GetTabInternalPadding().right();
+@@ -3337,6 +3373,14 @@ void TabStrip::SetResetToShrinkOnExit(bool value) {
+ }
+ 
+ void TabStrip::UpdateNewTabButtonBorder() {
++  if (MD::eye_protection) {
++    const int extra_vertical_space =
++        GetLayoutConstant(TAB_HEIGHT) -
++        GetLayoutConstant(TABSTRIP_TOOLBAR_OVERLAP) - 18;
++    new_tab_button_->SetBorder(views::CreateEmptyBorder(
++        gfx::Insets(extra_vertical_space - 4, 0, 0, 0)));
++    return;
++  }
+   // The button is placed vertically exactly in the center of the tabstrip.
+   const int extra_vertical_space = GetLayoutConstant(TAB_HEIGHT) -
+                                    GetLayoutConstant(TABSTRIP_TOOLBAR_OVERLAP) -
+diff --git a/chrome/browser/ui/views/tabs/tab_style_ep.cc b/chrome/browser/ui/views/tabs/tab_style_ep.cc
+new file mode 100644
+index 000000000000..78741050de1a
+--- /dev/null
++++ b/chrome/browser/ui/views/tabs/tab_style_ep.cc
+@@ -0,0 +1,530 @@
++#include "chrome/browser/ui/views/tabs/tab_style_views.h"
++
++#include <algorithm>
++#include <utility>
++
++#include "cc/paint/paint_record.h"
++#include "chrome/browser/themes/theme_properties.h"
++#include "chrome/browser/ui/layout_constants.h"
++#include "chrome/browser/ui/ui_features.h"
++#include "chrome/browser/ui/views/frame/browser_non_client_frame_view.h"
++#include "chrome/browser/ui/views/tabs/glow_hover_controller.h"
++#include "chrome/browser/ui/views/tabs/tab.h"
++#include "chrome/browser/ui/views/tabs/tab_close_button.h"
++#include "chrome/browser/ui/views/tabs/tab_controller.h"
++#include "chrome/grit/theme_resources.h"
++#include "third_party/skia/include/core/SkScalar.h"
++#include "third_party/skia/include/pathops/SkPathOps.h"
++#include "ui/base/theme_provider.h"
++#include "ui/gfx/canvas.h"
++#include "ui/gfx/scoped_canvas.h"
++#include "ui/views/style/platform_style.h"
++#include "ui/views/style/typography.h"
++#include "ui/views/widget/widget.h"
++
++namespace eye_protection {
++
++// Returns a path corresponding to the tab's outer border for a given tab
++// |scale| and |bounds|.  If |unscale_at_end| is true, this path will be
++// normalized to a 1x scale by scaling by 1/scale before returning.  If
++// |extend_to_top| is true, the path is extended vertically to the top of the
++// tab bounds.  The caller uses this for Fitts' Law purposes in
++// maximized/fullscreen mode.
++SkPath GetBorderPath(float scale,
++                     float stroke_thickness,
++                     bool unscale_at_end,
++                     bool extend_to_top,
++                     const gfx::Rect& bounds) {
++  SkPath path;
++  const float top = scale - stroke_thickness;
++  const float right = bounds.width() * scale;
++  const float bottom = bounds.height() * scale;
++  const float endcap_width =
++      ui::TouchUiController::Get()->touch_ui() ? 23.5f : 15.5f;
++  path.moveTo(0, bottom);
++  path.rLineTo(0, -stroke_thickness);
++  path.rCubicTo(0.75 * scale, 0, 1.625 * scale, -0.5 * scale, 2 * scale,
++                -1.5 * scale);
++  path.lineTo((endcap_width - 2) * scale, top + 1.5 * scale);
++  if (extend_to_top) {
++    // Create the vertical extension by extending the side diagonals until
++    // they reach the top of the bounds.
++    const float dy = 2.5 * scale - stroke_thickness;
++    const float dx =
++        (ui::TouchUiController::Get()->touch_ui() ? 19.5f : 11.5f) /
++        (GetLayoutConstant(TAB_HEIGHT) - 4) /
++        (GetLayoutConstant(TAB_HEIGHT) - 4) * dy;
++    path.rLineTo(dx, -dy);
++    path.lineTo(right - (endcap_width - 2) * scale - dx, 0);
++    path.rLineTo(dx, dy);
++  } else {
++    path.rCubicTo(0.375 * scale, -scale, 1.25 * scale, -1.5 * scale, 2 * scale,
++                  -1.5 * scale);
++    path.lineTo(right - endcap_width * scale, top);
++    path.rCubicTo(0.75 * scale, 0, 1.625 * scale, 0.5 * scale, 2 * scale,
++                  1.5 * scale);
++  }
++  path.lineTo(right - 2 * scale, bottom - stroke_thickness - 1.5 * scale);
++  path.rCubicTo(0.375 * scale, scale, 1.25 * scale, 1.5 * scale, 2 * scale,
++                1.5 * scale);
++  path.rLineTo(0, stroke_thickness);
++  path.close();
++
++  if (unscale_at_end && (scale != 1))
++    path.transform(SkMatrix::MakeScale(1.f / scale));
++
++  return path;
++}
++
++// Original color blending functions for better contrast
++// -------------------------------------------------------------
++
++SkAlpha FindBlendValueForContrastRatio(SkColor source,
++                                       SkColor target,
++                                       SkColor base,
++                                       float contrast_ratio,
++                                       int alpha_error_tolerance) {
++  DCHECK_EQ(SkColorGetA(source), SK_AlphaOPAQUE);
++  DCHECK_EQ(SkColorGetA(target), SK_AlphaOPAQUE);
++  DCHECK_EQ(SkColorGetA(base), SK_AlphaOPAQUE);
++  DCHECK_GE(alpha_error_tolerance, 0);
++
++  const float base_luminance = color_utils::GetRelativeLuminance(base);
++
++  // Use int for inclusive lower bound and exclusive upper bound, reserving
++  // conversion to SkAlpha for the end (reduces casts).
++  int low = SK_AlphaTRANSPARENT;
++  int high = SK_AlphaOPAQUE + 1;
++  SkAlpha best = SK_AlphaOPAQUE;
++  while (low + alpha_error_tolerance < high) {
++    const SkAlpha alpha = (low + high) / 2;
++    const SkColor blended = color_utils::AlphaBlend(target, source, alpha);
++    const float luminance = color_utils::GetRelativeLuminance(blended);
++    const float contrast =
++        color_utils::GetContrastRatio(luminance, base_luminance);
++    if (contrast >= contrast_ratio) {
++      best = alpha;
++      high = alpha;
++    } else {
++      low = alpha + 1;
++    }
++  }
++  return best;
++}
++
++// EPTabStyle -------------------------------------------------------------
++
++class EPTabStyle : public TabStyleViews {
++ public:
++  explicit EPTabStyle(Tab* tab);
++
++ protected:
++  //// TabStyle /////////////////////////////////////////////////
++
++  SkPath GetPath(
++      PathType path_type,
++      float scale,
++      bool force_active = false,
++      RenderUnits render_units = RenderUnits::kPixels) const override;
++  gfx::Insets GetContentsInsets() const override;
++  float GetZValue() const override;
++  TabStyle::TabColors CalculateColors() const override;
++  const gfx::FontList& GetFontList() const override;
++  void PaintTab(gfx::Canvas* canvas) const override;
++  void SetHoverLocation(const gfx::Point& location) override;
++  void ShowHover(ShowHoverStyle style) override;
++  void HideHover(HideHoverStyle style) override;
++
++ private:
++  //// Assist /////////////////////////////////////////////////
++
++  SkColor GetBackgroundColor(TabActive active) const;
++
++  //// Painting /////////////////////////////////////////////////
++
++  void PaintBackground(gfx::Canvas* canvas,
++                       bool active,
++                       base::Optional<int> fill_id,
++                       int y_inset) const;
++
++  ///////////////////////////////////////////////////////////////
++
++  // Returns whether the hover animation is being shown.
++  bool IsHoverActive() const {
++    return hover_controller_ && hover_controller_->ShouldDraw();
++  }
++
++  // Returns the progress (0 to 1) of the hover animation.
++  double GetHoverAnimationValue() const {
++    if (!hover_controller_)
++      return 0.0;
++    return hover_controller_->GetAnimationValue();
++  }
++
++  // Returns the opacity of the hover effect that should be drawn, which may not
++  // be the same as GetHoverAnimationValue.
++  float GetHoverOpacity() const {
++    // Opacity boost varies on tab width.  The interpolation is nonlinear so
++    // that most tabs will fall on the low end of the opacity range, but very
++    // narrow tabs will still stand out on the high end.
++    const float range_start = float{GetStandardWidth()};
++    const float range_end = float{GetMinimumInactiveWidth()};
++    const float value_in_range = float{tab_->width()};
++    const float t = (value_in_range - range_start) / (range_end - range_start);
++    return tab_->controller()->GetHoverOpacityForTab(t * t);
++  }
++
++  // Gets the throb value. A value of 0 indicates no throbbing.
++  float GetThrobValue() const {
++    const bool is_selected = tab_->IsSelected();
++    double val = is_selected ? kSelectedTabOpacity : 0;
++
++    if (hover_controller_->ShouldDraw()) {
++      // Opacity boost varies on tab width.  The interpolation is nonlinear so
++      // that most tabs will fall on the low end of the opacity range, but very
++      // narrow tabs will still stand out on the high end.
++      const float range_start = float{GetStandardWidth()};
++      const float range_end = float{GetMinimumInactiveWidth()};
++      const float value_in_range = float{tab_->width()};
++      const float t =
++          (value_in_range - range_start) / (range_end - range_start);
++      const float opacity = tab_->controller()->GetHoverOpacityForTab(t * t);
++      constexpr float kSelectedTabThrobScale = 0.95f - kSelectedTabOpacity;
++      val += hover_controller_->GetAnimationValue() *
++             (is_selected ? (kSelectedTabThrobScale * opacity) : opacity);
++    }
++    return val;
++  }
++
++  // Always have a stroke
++  int GetStrokeThickness() const {
++    return tab_->controller()->GetStrokeThickness();
++  }
++
++  const Tab* const tab_;
++
++  std::unique_ptr<GlowHoverController> hover_controller_;
++  gfx::FontList normal_font_;
++  gfx::FontList heavy_font_;
++
++  DISALLOW_COPY_AND_ASSIGN(EPTabStyle);
++};
++
++EPTabStyle::EPTabStyle(Tab* tab)
++    : tab_(tab),
++      hover_controller_(gfx::Animation::ShouldRenderRichAnimation()
++                            ? new GlowHoverController(tab)
++                            : nullptr),
++      normal_font_(views::style::GetFont(views::style::CONTEXT_LABEL,
++                                         views::style::STYLE_PRIMARY)),
++      heavy_font_(views::style::GetFont(views::style::CONTEXT_BUTTON_MD,
++                                        views::style::STYLE_PRIMARY)) {}
++
++//// TabStyle /////////////////////////////////////////////////
++
++SkPath EPTabStyle::GetPath(PathType path_type,
++                           float scale,
++                           bool force_active,
++                           RenderUnits render_units) const {
++  const int stroke_thickness = GetStrokeThickness();
++  const gfx::Rect& bounds = tab_->bounds();
++  switch (path_type) {
++    case PathType::kBorder: {
++      return GetBorderPath(scale, stroke_thickness, false, false, bounds);
++    }
++    case PathType::kHitTest: {
++      // When the window is maximized we don't want to shave off the edges or
++      // top
++      // shadow of the tab, such that the user can click anywhere along the top
++      // edge of the screen to select a tab. Ditto for immersive fullscreen.
++      const views::Widget* widget = tab_->GetWidget();
++      return GetBorderPath(
++          widget->GetCompositor()->device_scale_factor(), stroke_thickness,
++          true, widget && (widget->IsMaximized() || widget->IsFullscreen()),
++          bounds);
++    }
++    case PathType::kFill:
++    case PathType::kInteriorClip: {
++      // Returns a path corresponding to the tab's content region inside the
++      // outer stroke. The sides of the path will be inset by |insets|; this
++      // is useful when trying to clip favicons to match the overall tab shape
++      // but be inset from the edge.
++
++      const float right = bounds.width() * scale;
++      // The bottom of the tab needs to be pixel-aligned or else when we call
++      // ClipPath with anti-aliasing enabled it can cause artifacts.
++      const float bottom = std::ceil(bounds.height() * scale);
++      const float endcap_width =
++          ui::TouchUiController::Get()->touch_ui() ? 23.5f : 15.5f;
++
++      // Construct the interior path by intersecting paths representing the
++      // left and right halves of the tab.  Compared to computing the full
++      // path at once, this makes it easier to avoid overdraw in the top
++      // center near minimum width, and to implement cases where
++      // !insets.IsEmpty().
++
++      SkPath right_path;
++      right_path.moveTo(right - 1, bottom);
++      right_path.rCubicTo(-0.75 * scale, 0, -1.625 * scale, -0.5 * scale,
++                          -2 * scale, -1.5 * scale);
++      right_path.lineTo(right - 1 - (endcap_width - 2) * scale, 2.5 * scale);
++      right_path.rCubicTo(-0.375 * scale, -1 * scale, -1.25 * scale,
++                          -1.5 * scale, -2 * scale, -1.5 * scale);
++      right_path.lineTo(0, scale);
++      right_path.lineTo(0, bottom);
++      right_path.close();
++
++      SkPath left_path;
++      left_path.moveTo(1 + endcap_width * scale, scale);
++      left_path.rCubicTo(-0.75 * scale, 0, -1.625 * scale, 0.5 * scale,
++                         -2 * scale, 1.5 * scale);
++      left_path.lineTo(1 + 2 * scale, bottom - 1.5 * scale);
++      left_path.rCubicTo(-0.375 * scale, scale, -1.25 * scale, 1.5 * scale,
++                         -2 * scale, 1.5 * scale);
++      left_path.lineTo(right, bottom);
++      left_path.lineTo(right, scale);
++      left_path.close();
++
++      SkPath complete_path;
++      Op(left_path, right_path, SkPathOp::kIntersect_SkPathOp, &complete_path);
++      return complete_path;
++    }
++    case PathType::kHighlight: {
++      SkPath path;
++      path.addRect(bounds.x(), bounds.y(), bounds.right(), bounds.bottom());
++
++      gfx::PointF origin(tab_->origin());
++      origin.Scale(scale);
++      path.offset(-origin.x(), -origin.y());
++
++      if (render_units == RenderUnits::kDips && scale != 1.0f)
++        path.transform(SkMatrix::MakeScale(1.f / scale));
++
++      return path;
++    }
++  }
++}
++
++gfx::Insets EPTabStyle::GetContentsInsets() const {
++  const int stroke_thickness = GetStrokeThickness();
++  const int horizontal_inset = GetContentsHorizontalInsetSize();
++  return gfx::Insets(
++      stroke_thickness, horizontal_inset,
++      stroke_thickness + GetLayoutConstant(TABSTRIP_TOOLBAR_OVERLAP),
++      horizontal_inset);
++}
++
++float EPTabStyle::GetZValue() const {
++  // This will return values so that inactive tabs can be sorted in the
++  // following order:
++  //
++  // o Unselected tabs, in ascending hover animation value order.
++  // o The single unselected tab being hovered by the mouse, if present.
++  // o Selected tabs, in ascending hover animation value order.
++  // o The single selected tab being hovered by the mouse, if present.
++  //
++  // Representing the above groupings is accomplished by adding a "weight" to
++  // the current hover animation value.
++  //
++  // 0.0 == z-value         Unselected/non hover animating.
++  // 0.0 <  z-value <= 1.0  Unselected/hover animating.
++  // 2.0 <= z-value <= 3.0  Unselected/mouse hovered tab.
++  // 4.0 == z-value         Selected/non hover animating.
++  // 4.0 <  z-value <= 5.0  Selected/hover animating.
++  // 6.0 <= z-value <= 7.0  Selected/mouse hovered tab.
++  //
++  // This function doesn't handle active tabs, as they are normally painted by a
++  // different code path (with z-value infinity).
++  float sort_value = GetHoverAnimationValue();
++  if (tab_->IsSelected())
++    sort_value += 4.f;
++  if (tab_->mouse_hovered())
++    sort_value += 2.f;
++  return sort_value;
++}
++
++TabStyle::TabColors EPTabStyle::CalculateColors() const {
++  // In some cases, inactive tabs may have background more like active tabs than
++  // inactive tabs, so colors should be adapted to ensure appropriate contrast.
++  // In particular, text should have plenty of contrast in all cases, so switch
++  // to using foreground color designed for active tabs if the tab looks more
++  // like an active tab than an inactive tab.
++  float expected_opacity = 0.0f;
++  if (tab_->IsActive()) {
++    expected_opacity = 1.0f;
++  } else if (tab_->IsSelected()) {
++    expected_opacity = kSelectedTabOpacity;
++  } else if (tab_->mouse_hovered()) {
++    expected_opacity = GetHoverOpacity();
++  }
++  const SkColor background_color = color_utils::AlphaBlend(
++      GetBackgroundColor(TabActive::kActive),
++      GetBackgroundColor(TabActive::kInactive), expected_opacity);
++
++  const SkColor foreground_color = tab_->controller()->GetTabForegroundColor(
++      expected_opacity > 0.5f ? TabActive::kActive : TabActive::kInactive,
++      background_color);
++
++  return {foreground_color, background_color};
++}
++
++const gfx::FontList& EPTabStyle::GetFontList() const {
++  // Don't want to have to keep re-computing this value.
++  static const bool prominent_dark_mode_title =
++      base::FeatureList::IsEnabled(features::kProminentDarkModeActiveTabTitle);
++
++  if (prominent_dark_mode_title && tab_->IsActive() &&
++      color_utils::IsDark(GetBackgroundColor(TabActive::kActive))) {
++    return heavy_font_;
++  }
++
++  return normal_font_;
++}
++
++void EPTabStyle::PaintTab(gfx::Canvas* canvas) const {
++  base::Optional<int> active_tab_fill_id;
++  int active_tab_y_inset = 0;
++  if (tab_->GetThemeProvider()->HasCustomImage(IDR_THEME_TOOLBAR)) {
++    active_tab_fill_id = IDR_THEME_TOOLBAR;
++    active_tab_y_inset = GetStrokeThickness();
++  }
++
++  if (tab_->IsActive()) {
++    PaintBackground(canvas, true /* active */, active_tab_fill_id,
++                    active_tab_y_inset);
++  } else {
++    PaintBackground(canvas, false /* active */,
++                    tab_->controller()->GetCustomBackgroundId(
++                        BrowserFrameActiveState::kUseCurrent),
++                    0);
++
++    const float throb_value = GetThrobValue();
++    if (throb_value > 0) {
++      canvas->SaveLayerAlpha(gfx::ToRoundedInt(throb_value * 0xff),
++                             tab_->GetLocalBounds());
++      PaintBackground(canvas, true /* active */, active_tab_fill_id,
++                      active_tab_y_inset);
++      canvas->Restore();
++    }
++  }
++}
++
++void EPTabStyle::SetHoverLocation(const gfx::Point& location) {
++  if (hover_controller_)
++    hover_controller_->SetLocation(location);
++}
++
++void EPTabStyle::ShowHover(ShowHoverStyle style) {
++  if (hover_controller_) {
++    if (style == ShowHoverStyle::kSubtle) {
++      hover_controller_->SetSubtleOpacityScale(
++          tab_->controller()->GetHoverOpacityForRadialHighlight());
++    }
++    hover_controller_->Show(style);
++  }
++}
++
++void EPTabStyle::HideHover(HideHoverStyle style) {
++  if (hover_controller_)
++    hover_controller_->Hide(style);
++}
++
++//// Assist /////////////////////////////////////////////////
++
++SkColor EPTabStyle::GetBackgroundColor(TabActive active) const {
++  return tab_->controller()->GetTabBackgroundColor(
++      active, BrowserFrameActiveState::kUseCurrent);
++}
++
++//// Painting /////////////////////////////////////////////////
++
++void EPTabStyle::PaintBackground(gfx::Canvas* canvas,
++                                 bool active,
++                                 base::Optional<int> fill_id,
++                                 int y_inset) const {
++  // |y_inset| is only set when |fill_id| is being used.
++  DCHECK(!y_inset || fill_id.has_value());
++
++  const SkPath fill_path =
++      GetPath(PathType::kFill, canvas->image_scale(), active);
++
++  canvas->Save();
++
++  const float scale = canvas->UndoDeviceScaleFactor();
++
++  canvas->ClipPath(fill_path, true);
++
++  if (active || (!fill_id.has_value() &&
++                 tab_->GetThemeProvider()->GetDisplayProperty(
++                     ThemeProperties::SHOULD_FILL_BACKGROUND_TAB_COLOR))) {
++    cc::PaintFlags flags;
++    flags.setAntiAlias(true);
++    flags.setColor(
++        GetBackgroundColor(active ? TabActive::kActive : TabActive::kInactive));
++
++    canvas->DrawRect(gfx::ScaleToEnclosingRect(tab_->GetLocalBounds(), scale),
++                     flags);
++  }
++
++  if (fill_id.has_value()) {
++    gfx::ScopedCanvas scale_scoper(canvas);
++    canvas->sk_canvas()->scale(scale, scale);
++    canvas->TileImageInt(
++        *tab_->GetThemeProvider()->GetImageSkiaNamed(fill_id.value()),
++        tab_->GetMirroredX() + tab_->controller()->GetBackgroundOffset(), 0, 0,
++        y_inset, tab_->width(), tab_->height());
++  }
++
++  if (!active && IsHoverActive()) {
++    SkPoint hover_location(gfx::PointToSkPoint(hover_controller_->location()));
++    hover_location.scale(SkFloatToScalar(scale));
++    const SkScalar kMinHoverRadius = 16;
++    const SkScalar radius =
++        std::max(SkFloatToScalar(tab_->width() / 4.f), kMinHoverRadius);
++
++    // Draw highlights
++    SkScalar r = radius * scale;
++    const SkColor color = SkColorSetA(GetBackgroundColor(TabActive::kActive),
++                                      hover_controller_->GetAlpha());
++    const SkColor colors[2] = {color, SkColorSetA(color, 0)};
++
++    cc::PaintFlags flags;
++    flags.setAntiAlias(true);
++    flags.setShader(cc::PaintShader::MakeRadialGradient(
++        hover_location, r, colors, nullptr, 2, SkTileMode::kClamp));
++
++    canvas->sk_canvas()->drawRect(
++        SkRect::MakeXYWH(hover_location.x() - r, hover_location.y() - r, r * 2,
++                         r * 2),
++        flags);
++  }
++
++  canvas->Restore();
++
++  const float stroke_thickness = GetStrokeThickness();
++  if (stroke_thickness) {
++    const SkPath stroke_path =
++        GetPath(TabStyle::PathType::kBorder, canvas->image_scale(), active);
++
++    gfx::ScopedCanvas scale_scoper(canvas);
++
++    const float scale = canvas->UndoDeviceScaleFactor();
++
++    if (!active) {
++      // Clip out the bottom line, this will be drawn by
++      // TabStrip::PaintChildren()
++      canvas->ClipRect(
++          gfx::RectF(tab_->width() * scale, tab_->height() * scale - 1));
++    }
++
++    cc::PaintFlags flags;
++    flags.setAntiAlias(true);
++    flags.setColor(tab_->controller()->GetToolbarTopSeparatorColor());
++
++    SkPath path;
++    Op(stroke_path, fill_path, kDifference_SkPathOp, &path);
++    canvas->DrawPath(path, flags);
++  }
++}
++
++}  // namespace eye_protection
+diff --git a/chrome/browser/ui/views/tabs/tab_style_views.cc b/chrome/browser/ui/views/tabs/tab_style_views.cc
+index ee91707b46ab..8b97d07d0f83 100644
+--- a/chrome/browser/ui/views/tabs/tab_style_views.cc
++++ b/chrome/browser/ui/views/tabs/tab_style_views.cc
+@@ -31,6 +31,8 @@
+ #include "ui/views/style/typography.h"
+ #include "ui/views/widget/widget.h"
+ 
++#include "chrome/browser/ui/views/tabs/tab_style_ep.cc"
++
+ namespace {
+ // How the tab shape path is modified for selected tabs.
+ using ShapeModifier = int;
+@@ -950,6 +952,8 @@ TabStyleViews::~TabStyleViews() = default;
+ 
+ // static
+ std::unique_ptr<TabStyleViews> TabStyleViews::CreateForTab(Tab* tab) {
++  if (ui::TouchUiController::eye_protection)
++    return std::make_unique<eye_protection::EPTabStyle>(tab);
+   return std::make_unique<GM2TabStyle>(tab);
+ }
+ 
+@@ -960,6 +964,8 @@ int TabStyleViews::GetMinimumActiveWidth() {
+ 
+ // static
+ int TabStyleViews::GetMinimumInactiveWidth() {
++  if (ui::TouchUiController::eye_protection)
++    return GetContentsHorizontalInsetSize() * 2;
+   // Allow tabs to shrink until they appear to be 16 DIP wide excluding
+   // outer corners.
+   constexpr int kInteriorWidth = 16;
+-- 
+2.24.1.windows.2
+
