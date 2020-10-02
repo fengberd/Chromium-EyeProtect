@@ -1,0 +1,38 @@
+From 2a6ee280ac8fd8a6c30736afadc37740009f7fdd Mon Sep 17 00:00:00 2001
+From: fengberd <admin@berd.moe>
+Date: Fri, 22 May 2020 08:32:15 +0800
+Subject: [PATCH 6/6] [Eye Protect] Disable Network Service Sandbox
+
+---
+ testing/variations/fieldtrial_testing_config.json | 15 ---------------
+ 1 file changed, 15 deletions(-)
+
+diff --git a/testing/variations/fieldtrial_testing_config.json b/testing/variations/fieldtrial_testing_config.json
+index ca5a216cc381..1521ae57bd21 100644
+--- a/testing/variations/fieldtrial_testing_config.json
++++ b/testing/variations/fieldtrial_testing_config.json
+@@ -4261,21 +4261,6 @@
+             ]
+         }
+     ],
+-    "NetworkServiceSandbox": [
+-        {
+-            "platforms": [
+-                "windows"
+-            ],
+-            "experiments": [
+-                {
+-                    "name": "Enabled",
+-                    "enable_features": [
+-                        "NetworkServiceSandbox"
+-                    ]
+-                }
+-            ]
+-        }
+-    ],
+     "NewTabInProductHelp": [
+         {
+             "platforms": [
+-- 
+2.28.0.windows.1
+
