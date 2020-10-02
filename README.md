@@ -26,10 +26,6 @@ Chromium-EyeProtect 是 [Chromium Browser](https://www.chromium.org/Home) 的一
 # Recommended Flags Settings / 推荐的Flags设置
 * __#eye-protction__ = *enabled*
 * __#tab-hover-cards__ = *disabled*
-* __#simplify-https-indicator__ = *disabled*
-* __#omnibox-ui-hide-steady-state-url-scheme__ = *disabled*
-* __#omnibox-ui-hide-steady-state-url-trivial-subdomains__ = *disabled*
-* __#omnibox-ui-hide-steady-state-url-path-query-and-ref__ = *disabled*
 
 # Pre-Built Binaries / 预编译安装包
 - OneDrive: [Link](https://fengberd-my.sharepoint.com/:f:/g/personal/admin_berd_moe/EgfAnbvVaB5KucXzZ7VXSMwB_1c1EFyokgcc2m8ZUb3m2A?e=YuAFcz)
