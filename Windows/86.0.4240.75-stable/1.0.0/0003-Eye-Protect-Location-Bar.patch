@@ -1,0 +1,309 @@
+From 31eafd0d53ca12c4e003ca740910dc68d3b601a8 Mon Sep 17 00:00:00 2001
+From: fengberd <admin@berd.moe>
+Date: Fri, 2 Oct 2020 01:20:55 +0800
+Subject: [PATCH 3/6] [Eye Protect] Location Bar
+
+---
+ chrome/browser/themes/theme_helper.cc         |  6 ++
+ chrome/browser/themes/theme_properties.cc     |  7 ++
+ chrome/browser/ui/layout_constants.cc         | 17 +++++
+ .../ui/views/location_bar/background_ep.cc    | 67 +++++++++++++++++++
+ .../location_bar/icon_label_bubble_view.cc    | 10 ++-
+ .../views/location_bar/location_bar_view.cc   | 27 ++++++--
+ ui/native_theme/common_theme.cc               | 14 ++++
+ 7 files changed, 142 insertions(+), 6 deletions(-)
+ create mode 100644 chrome/browser/ui/views/location_bar/background_ep.cc
+
+diff --git a/chrome/browser/themes/theme_helper.cc b/chrome/browser/themes/theme_helper.cc
+index 3c4c72424c97..ef62ba16b4e1 100644
+--- a/chrome/browser/themes/theme_helper.cc
++++ b/chrome/browser/themes/theme_helper.cc
+@@ -332,6 +332,11 @@ SkColor ThemeHelper::GetDefaultColor(
+       // TODO(http://crbug.com/878664): Enable for all cases.
+       if (!IsCustomTheme(theme_supplier))
+         break;
++      if (ui::TouchUiController::eye_protection) {
++        return ui::NativeTheme::GetInstanceForNativeUi()->GetSystemColor(
++            ui::NativeTheme::kColorId_TextfieldDefaultBackground,
++            ui::NativeTheme::ColorScheme::kLight);
++      }
+       constexpr float kMinOmniboxToolbarContrast = 1.3f;
+       const SkColor toolbar_color =
+           GetColor(TP::COLOR_TOOLBAR, incognito, theme_supplier);
+@@ -637,6 +642,7 @@ base::Optional<ThemeHelper::OmniboxColor> ThemeHelper::GetOmniboxColorImpl(
+   const auto blend_with_clamped_contrast = [&](OmniboxColor bg) {
+     return blend_for_min_contrast(fg, fg, blend_for_min_contrast(bg, bg));
+   };
++
+   switch (id) {
+     case TP::COLOR_OMNIBOX_TEXT:
+     case TP::COLOR_OMNIBOX_RESULTS_TEXT_SELECTED:
+diff --git a/chrome/browser/themes/theme_properties.cc b/chrome/browser/themes/theme_properties.cc
+index 064b6f70476f..583cb2bdd70e 100644
+--- a/chrome/browser/themes/theme_properties.cc
++++ b/chrome/browser/themes/theme_properties.cc
+@@ -318,6 +318,13 @@ SkColor ThemeProperties::GetDefaultColor(int id,
+     // Don't modify GetIncognitoColor, which would make further maintaince
+     // harder.
+     switch (id) {
++      case COLOR_OMNIBOX_BACKGROUND:
++      case COLOR_OMNIBOX_BACKGROUND_HOVERED:
++        if (kindOfDark)
++          break;
++        return ui::NativeTheme::GetInstanceForNativeUi()->GetSystemColor(
++            ui::NativeTheme::kColorId_TextfieldDefaultBackground,
++            ui::NativeTheme::ColorScheme::kLight);
+       case COLOR_FRAME_ACTIVE:
+         return kindOfDark ? SkColorSetRGB(0x28, 0x2B, 0x2D)
+                           : SkColorSetRGB(0xCC, 0xCC, 0xCC);
+diff --git a/chrome/browser/ui/layout_constants.cc b/chrome/browser/ui/layout_constants.cc
+index 19623807d8d8..3c4f1b6640e4 100644
+--- a/chrome/browser/ui/layout_constants.cc
++++ b/chrome/browser/ui/layout_constants.cc
+@@ -49,6 +49,12 @@ int GetLayoutConstant(LayoutConstant constant) {
+         return touch_ui ? 4 : 6;
+       case TABSTRIP_TOOLBAR_OVERLAP:
+         return 0;
++      case LOCATION_BAR_BUBBLE_FONT_VERTICAL_PADDING:
++        return 2;
++      case LOCATION_BAR_BUBBLE_ANCHOR_VERTICAL_INSET:
++        return 6;
++      case LOCATION_BAR_ELEMENT_PADDING:
++        return touch_ui ? 3 : 1;
+       default:
+         break;
+     }
+@@ -114,6 +120,17 @@ int GetLayoutConstant(LayoutConstant constant) {
+ 
+ gfx::Insets GetLayoutInsets(LayoutInset inset) {
+   const bool touch_ui = ui::TouchUiController::Get()->touch_ui();
++  if (ui::TouchUiController::eye_protection) {
++    // Easier to merge if we write like that
++    switch (inset) {
++      case LOCATION_BAR_ICON_INTERIOR_PADDING:
++        return touch_ui ? gfx::Insets(5) : gfx::Insets(4);
++      case TOOLBAR_ACTION_VIEW:
++        return gfx::Insets(touch_ui ? 10 : 2);
++      default:
++        break;
++    }
++  }
+   switch (inset) {
+     case LOCATION_BAR_ICON_INTERIOR_PADDING:
+       return touch_ui ? gfx::Insets(5, 10) : gfx::Insets(4, 8);
+diff --git a/chrome/browser/ui/views/location_bar/background_ep.cc b/chrome/browser/ui/views/location_bar/background_ep.cc
+new file mode 100644
+index 000000000000..ad1ca245dd55
+--- /dev/null
++++ b/chrome/browser/ui/views/location_bar/background_ep.cc
+@@ -0,0 +1,67 @@
++// Copyright 2015 The Chromium Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++#include "base/macros.h"
++#include "cc/paint/paint_flags.h"
++#include "third_party/skia/include/core/SkBlendMode.h"
++#include "third_party/skia/include/core/SkColor.h"
++#include "ui/gfx/canvas.h"
++#include "ui/gfx/scoped_canvas.h"
++#include "ui/views/background.h"
++#include "ui/views/view.h"
++
++// BackgroundWith1PxBorder renders a solid background color, with a one pixel
++// border with rounded corners. This accounts for the scaling of the canvas, so
++// that the border is one pixel regardless of display scaling.
++class BackgroundWith1PxBorder : public views::Background {
++ public:
++  // The thickness of the border in DIP.
++  static constexpr int kBorderThicknessDip = 1;
++
++  // The legacy (non touch/material) border radius.
++  static constexpr int kLegacyBorderRadiusPx = 2;
++
++  BackgroundWith1PxBorder(SkColor background, SkColor border)
++      : border_color_(border) {
++    SetNativeControlColor(background);
++  }
++
++  void Paint(gfx::Canvas* canvas, views::View* view) const override {
++    gfx::ScopedCanvas scoped_canvas(canvas);
++
++    const float scale = canvas->UndoDeviceScaleFactor();
++
++    gfx::RectF border_rect_f(view->GetContentsBounds());
++    border_rect_f.Scale(scale);
++
++    // Inset by |kBorderThicknessDip|, then draw the border along the outside
++    // edge of the result. Make sure the inset amount is a whole number so the
++    // border will still be aligned to the pixel grid. std::floor is chosen here
++    // to ensure the border will be fully contained within the
++    // |kBorderThicknessDip| region.
++    border_rect_f.Inset(gfx::InsetsF(std::floor(kBorderThicknessDip * scale)));
++
++    SkRRect inner_rect(SkRRect::MakeRectXY(gfx::RectFToSkRect(border_rect_f),
++                                           kLegacyBorderRadiusPx,
++                                           kLegacyBorderRadiusPx));
++    SkRRect outer_rect(inner_rect);
++    outer_rect.outset(1, 1);
++
++    cc::PaintFlags flags;
++    flags.setBlendMode(SkBlendMode::kSrcOver);
++    flags.setAntiAlias(true);
++    flags.setStyle(cc::PaintFlags::kFill_Style);
++
++    flags.setColor(border_color_);
++    canvas->sk_canvas()->drawDRRect(outer_rect, inner_rect, flags);
++
++    flags.setColor(get_color());
++    canvas->sk_canvas()->drawRRect(inner_rect, flags);
++  }
++
++ private:
++  // Color for the one pixel border.
++  SkColor border_color_;
++
++  DISALLOW_COPY_AND_ASSIGN(BackgroundWith1PxBorder);
++};
+diff --git a/chrome/browser/ui/views/location_bar/icon_label_bubble_view.cc b/chrome/browser/ui/views/location_bar/icon_label_bubble_view.cc
+index 3190247aba74..b5f056d265ee 100644
+--- a/chrome/browser/ui/views/location_bar/icon_label_bubble_view.cc
++++ b/chrome/browser/ui/views/location_bar/icon_label_bubble_view.cc
+@@ -420,6 +420,12 @@ gfx::Size IconLabelBubbleView::GetSizeForLabelWidth(int label_width) const {
+ int IconLabelBubbleView::GetInternalSpacing() const {
+   if (image()->GetPreferredSize().IsEmpty())
+     return 0;
++  if (ui::TouchUiController::eye_protection) {
++    return ui::TouchUiController::Get()->touch_ui()
++               ? 4
++               : GetLayoutConstant(LOCATION_BAR_ELEMENT_PADDING) +
++                     GetLayoutInsets(LOCATION_BAR_ICON_INTERIOR_PADDING).left();
++  }
+   return (ui::TouchUiController::Get()->touch_ui() ? 10 : 8) +
+          GetExtraInternalSpacing();
+ }
+@@ -552,7 +558,9 @@ SkPath IconLabelBubbleView::GetHighlightPath() const {
+     highlight_bounds.Inset(0, 0, GetEndPaddingWithSeparator(), 0);
+   highlight_bounds = GetMirroredRect(highlight_bounds);
+ 
+-  const float corner_radius = highlight_bounds.height() / 2.f;
++  const float corner_radius = ui::TouchUiController::eye_protection
++                                  ? 2.f
++                                  : highlight_bounds.height() / 2.f;
+   const SkRect rect = RectToSkRect(highlight_bounds);
+ 
+   return SkPath().addRoundRect(rect, corner_radius, corner_radius);
+diff --git a/chrome/browser/ui/views/location_bar/location_bar_view.cc b/chrome/browser/ui/views/location_bar/location_bar_view.cc
+index 5d2b59f11878..aefb3ddf2a0a 100644
+--- a/chrome/browser/ui/views/location_bar/location_bar_view.cc
++++ b/chrome/browser/ui/views/location_bar/location_bar_view.cc
+@@ -121,6 +121,9 @@
+ #include "ui/views/style/typography.h"
+ #include "ui/views/widget/widget.h"
+ 
++#include "chrome/browser/ui/views/location_bar/background_ep.cc"
++using MD = ui::TouchUiController;
++
+ namespace {
+ 
+ int IncrementalMinimumWidth(const views::View* view) {
+@@ -149,7 +152,7 @@ LocationBarView::LocationBarView(Browser* browser,
+       profile_(profile),
+       delegate_(delegate),
+       is_popup_mode_(is_popup_mode) {
+-  if (!is_popup_mode_) {
++  if (!MD::eye_protection && !is_popup_mode_) {
+     focus_ring_ = views::FocusRing::Install(this);
+     focus_ring_->SetHasFocusPredicate([](View* view) -> bool {
+       DCHECK_EQ(view->GetClassName(), LocationBarView::kViewClassName);
+@@ -334,6 +337,8 @@ SkColor LocationBarView::GetOpaqueBorderColor() const {
+ }
+ 
+ int LocationBarView::GetBorderRadius() const {
++  if (MD::eye_protection)
++    return MD::Get()->touch_ui() ? 8 : 2;
+   return ChromeLayoutProvider::Get()->GetCornerRadiusMetric(
+       views::EMPHASIS_MAXIMUM, size());
+ }
+@@ -468,7 +473,8 @@ void LocationBarView::Layout() {
+   selected_keyword_view_->SetVisible(false);
+   keyword_hint_view_->SetVisible(false);
+ 
+-  const int edge_padding = GetLayoutConstant(LOCATION_BAR_ELEMENT_PADDING);
++  const int edge_padding =
++      GetLayoutConstant(LOCATION_BAR_ELEMENT_PADDING) + 1 /* WTF */;
+ 
+   // The text should be indented only if these are all true:
+   //  - The popup is open.
+@@ -512,7 +518,8 @@ void LocationBarView::Layout() {
+   // to position our child views in this case, because other things may be
+   // positioned relative to them (e.g. the "bookmark added" bubble if the user
+   // hits ctrl-d).
+-  const int vertical_padding = GetLayoutConstant(LOCATION_BAR_ELEMENT_PADDING);
++  const int vertical_padding = GetLayoutConstant(LOCATION_BAR_ELEMENT_PADDING) +
++                               (MD::eye_protection ? 1 : 0);
+   const int location_height = std::max(height() - (vertical_padding * 2), 0);
+   // The largest fraction of the omnibox that can be taken by the EV or search
+   // label/chip.
+@@ -853,7 +860,11 @@ SkColor LocationBarView::GetBorderColor() const {
+ }
+ 
+ gfx::Rect LocationBarView::GetLocalBoundsWithoutEndcaps() const {
+-  const int border_radius = height() / 2;
++  const int border_radius =
++      MD::eye_protection
++          ? std::ceil(BackgroundWith1PxBorder::kLegacyBorderRadiusPx /
++                      layer()->device_scale_factor())
++                         : height() / 2;
+   gfx::Rect bounds_without_endcaps(GetLocalBounds());
+   bounds_without_endcaps.Inset(border_radius, 0);
+   return bounds_without_endcaps;
+@@ -884,7 +895,13 @@ void LocationBarView::RefreshBackground() {
+       stroke_color = border_color;
+     }
+ 
+-    SetBackground(CreateRoundRectBackground(background_color, stroke_color));
++    if (MD::eye_protection &&
++        !omnibox_view_->model()->popup_model()->IsOpen()) {
++      SetBackground(std::make_unique<BackgroundWith1PxBorder>(
++          background_color, GetBorderColor()));
++    } else {
++      SetBackground(CreateRoundRectBackground(background_color, stroke_color));
++    }
+   }
+ 
+   // Keep the views::Textfield in sync. It needs an opaque background to
+diff --git a/ui/native_theme/common_theme.cc b/ui/native_theme/common_theme.cc
+index c0c37674e99b..6c9cc5639bd2 100644
+--- a/ui/native_theme/common_theme.cc
++++ b/ui/native_theme/common_theme.cc
+@@ -18,6 +18,8 @@
+ #include "ui/gfx/skia_util.h"
+ #include "ui/native_theme/overlay_scrollbar_constants_aura.h"
+ 
++#include "ui/base/pointer/touch_ui_controller.h"
++
+ namespace ui {
+ 
+ namespace {
+@@ -630,6 +632,18 @@ SkColor GetSecurityChipColor(NativeTheme::SecurityChipColorId chip_color_id,
+     return blend_for_min_contrast(color, bg);
+   };
+ 
++  if (ui::TouchUiController::eye_protection && !dark) {
++    switch (chip_color_id) {
++      case NativeTheme::SecurityChipColorId::DEFAULT:
++        return security_chip_color(gfx::kGoogleGrey800);
++      case NativeTheme::SecurityChipColorId::SECURE:
++      case NativeTheme::SecurityChipColorId::SECURE_WITH_CERT:
++        return security_chip_color(gfx::kGoogleGreen600);
++      case NativeTheme::SecurityChipColorId::DANGEROUS:
++        return security_chip_color(gfx::kGoogleRed600);
++    }
++  }
++
+   switch (chip_color_id) {
+     case NativeTheme::SecurityChipColorId::DEFAULT:
+     case NativeTheme::SecurityChipColorId::SECURE:
+-- 
+2.28.0.windows.1
+
