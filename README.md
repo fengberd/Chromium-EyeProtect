@@ -1,3 +1,10 @@
+# Discontinued Project / 此项目已放弃支持
+This project has been discontinued due to google's cut off of third party Chromium sync support. [Related News](https://www.zdnet.com/article/google-cuts-off-other-chromium-based-browsers-from-its-sync-service/)
+
+Without sync support, there's no reason to keep using Chromium.
+
+Chrome has never been an option, so I'm currently migrating to [Microsoft Edge](https://www.microsoft.com/en-us/edge/business/download), if you're looking for an alternative too, why not give it a try :P
+
 # Introduction / 简介
 ### English
 Chromium-EyeProtect is a fork of [Chromium Browser](https://www.chromium.org/Home).
